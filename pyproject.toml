@@ -1,0 +1,128 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crysio"
+version = "0.1.0"
+description = "Crystal I/O toolkit for preprocessing and visualizing crystal structures for machine learning applications"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Dafa, Abdullah Hasan", email = "dafa.abdullahhasan@gmail.com"}
+]
+maintainers = [
+    {name = "Dafa, Abdullah Hasan", email = "dafa.abdullahhasan@gmail.com"}
+]
+keywords = [
+    "materials science",
+    "crystal structures", 
+    "machine learning",
+    "graph neural networks",
+    "data preprocessing",
+    "visualization",
+    "CIF",
+    "POSCAR"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+requires-python = ">=3.9"
+dependencies = [
+    # Core scientific computing
+    "numpy>=1.21.0",
+    "pandas>=1.3.0",
+    "scipy>=1.7.0",
+    
+    # Materials science specific
+    "pymatgen>=2023.1.0",
+    "ase>=3.22.0",
+    
+    # Graph processing  
+    "torch>=1.12.0",
+    "torch-geometric>=2.2.0",
+    "networkx>=2.8",
+    
+    # Visualization
+    "matplotlib>=3.5.0",
+    "plotly>=5.0.0",
+    "py3dmol>=2.0.0",
+    "seaborn>=0.11.0",
+    
+    # File handling & API
+    "requests>=2.28.0",
+    "h5py>=3.7.0",
+    "tqdm>=4.64.0",
+    
+    # Configuration
+    "pydantic>=1.10.0",
+    "python-dotenv>=0.19.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=22.0.0",
+    "isort>=5.10.0",
+    "flake8>=5.0.0",
+    "mypy>=0.991",
+    "pre-commit>=2.20.0"
+]
+docs = [
+    "mkdocs>=1.4.0",
+    "mkdocs-material>=8.5.0",
+    "mkdocstrings[python]>=0.19.0"
+]
+jupyter = [
+    "jupyter>=1.0.0",
+    "ipywidgets>=8.0.0",
+    "jupyterlab>=3.4.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/yourhasandafa/crysio"
+Repository = "https://github.com/yourhasandafa/crysio.git"
+Documentation = "https://yourhasandafa.github.io/crysio/"
+"Bug Tracker" = "https://github.com/yourhasandafa/crysio/issues"
+
+[project.scripts]
+crysio = "crysio.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["crysio*"]
+
+[tool.setuptools.package-data]
+crysio = ["data/sample_structures/*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --cov=crysio"
+testpaths = [
+    "tests",
+]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

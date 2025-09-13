@@ -1,0 +1,66 @@
+# Crysio - Project Structure
+
+## Directory Structure
+```
+crysio/
+├── README.md
+├── LICENSE
+├── pyproject.toml
+├── requirements.txt
+├── .gitignore
+├── setup.py
+├── crysio/
+│   ├── __init__.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── crystal.py           # Main Crystal class
+│   │   ├── parsers.py           # CIF, POSCAR parsers
+│   │   ├── cleaners.py          # Data cleaning utilities
+│   │   └── validators.py        # Data validation
+│   ├── converters/
+│   │   ├── __init__.py
+│   │   ├── graph_builder.py     # Crystal → PyTorch Geometric
+│   │   └── format_converter.py  # Format standardization
+│   ├── visualizers/
+│   │   ├── __init__.py
+│   │   ├── crystal_viz.py       # 2D, 3D, interactive options
+│   │   └── analysis_plots.py    # Property visualization
+│   ├── api/
+│   │   ├── __init__.py
+│   │   └── materials_project.py # Materials Project API
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── config.py            # Configuration management
+│   │   ├── helpers.py           # Common utilities
+│   │   └── exceptions.py        # Custom exceptions
+│   └── data/
+│       ├── __init__.py
+│       └── sample_structures/   # Sample CIF, POSCAR files
+├── examples/
+│   ├── basic_usage.ipynb
+│   ├── materials_project_demo.ipynb
+│   └── visualization_gallery.ipynb
+├── tests/
+│   ├── __init__.py
+│   ├── test_parsers.py
+│   ├── test_converters.py
+│   ├── test_visualizers.py
+│   ├── test_api.py
+│   └── fixtures/
+│       ├── test_structure.cif
+│       └── test_structure.POSCAR
+└── docs/
+    ├── index.md
+    ├── installation.md
+    ├── quickstart.md
+    └── api_reference.md
+```
+
+## Key Files to Create First
+
+### 1. pyproject.toml
+### 2. Main package __init__.py
+### 3. Core Crystal class skeleton
+### 4. Basic README.md
+### 5. .gitignore for Python projects
+### 6. requirements.txt
