@@ -3,41 +3,66 @@ Crysio: Crystal I/O toolkit for preprocessing and visualizing
 crystal structures for machine learning applications.
 """
 
-from pathlib import Path
-
 __version__ = "0.1.0"
 __author__ = "Dafa, Abdullah Hasan"
 __email__ = "dafa.abdullahhasan@gmail.com"
 
-# Core imports - ONLY import what exists
-from .core.crystal import Crystal
-from .core.parsers import CIFParser, POSCARParser, auto_detect_format, get_parser
+# Import dependencies first
+from pathlib import Path
 
-# Utils imports - exceptions are implemented
-from .utils.exceptions import (
-    CrysioError,
-    ParsingError, 
-    ValidationError,
-    ConversionError,
-    APIError,
-    GraphBuildingError,
-    VisualizationError,
-    ConfigurationError
-)
+# Core imports with better error handling
+try:
+    from .core.crystal import Crystal
+    from .core.parsers import CIFParser, POSCARParser, auto_detect_format, get_parser
+except ImportError:
+    # Fallback for direct execution or import issues
+    try:
+        from crysio.core.crystal import Crystal
+        from crysio.core.parsers import CIFParser, POSCARParser, auto_detect_format, get_parser
+    except ImportError as e:
+        print(f"Warning: Could not import core modules: {e}")
+        Crystal = None
+        CIFParser = None
+        POSCARParser = None
+        auto_detect_format = None
+        get_parser = None
 
-# Placeholder imports for future implementation
-# These will be uncommented as we implement them
-# from .core.cleaners import StructureCleaner
-# from .core.validators import StructureValidator
-# from .converters.graph_builder import GraphBuilder
-# from .converters.format_converter import FormatConverter
-# from .visualizers.crystal_viz import Crystal2DVisualizer, Crystal3DVisualizer, InteractiveCrystalViz
-# from .visualizers.analysis_plots import StructureAnalysisPlots, PropertyCorrelationPlots
-# from .api.materials_project import MaterialsProjectAPI
-# from .utils.config import Config
+# Utils imports with error handling
+try:
+    from .utils.exceptions import (
+        CrysioError,
+        ParsingError, 
+        ValidationError,
+        ConversionError,
+        APIError,
+        GraphBuildingError,
+        VisualizationError,
+        ConfigurationError
+    )
+except ImportError:
+    try:
+        from crysio.utils.exceptions import (
+            CrysioError,
+            ParsingError, 
+            ValidationError,
+            ConversionError,
+            APIError,
+            GraphBuildingError,
+            VisualizationError,
+            ConfigurationError
+        )
+    except ImportError as e:
+        print(f"Warning: Could not import exception classes: {e}")
+        CrysioError = Exception
+        ParsingError = Exception
+        ValidationError = Exception
+        ConversionError = Exception
+        APIError = Exception
+        GraphBuildingError = Exception
+        VisualizationError = Exception
+        ConfigurationError = Exception
 
 
-# High-level convenience functions
 def load_structure(filepath_or_structure, format=None):
     """
     Load crystal structure from file or string.
@@ -53,8 +78,9 @@ def load_structure(filepath_or_structure, format=None):
         >>> structure = crysio.load_structure("example.cif")
         >>> structure = crysio.load_structure("POSCAR", format="poscar")
     """
-    from .core.parsers import auto_detect_format, get_parser
-    
+    if auto_detect_format is None or get_parser is None:
+        raise ImportError("Parser modules not available")
+        
     if format is None:
         format = auto_detect_format(filepath_or_structure)
     
@@ -80,14 +106,6 @@ def clean(structure, **kwargs):
     Note:
         Currently returns structure as-is. Full cleaning implementation coming soon.
     """
-    # TODO: Implement StructureCleaner and StructureValidator
-    # cleaner = StructureCleaner(**kwargs)
-    # validator = StructureValidator()
-    # 
-    # cleaned = cleaner.clean(structure)
-    # validator.validate(cleaned)
-    # return cleaned
-    
     print("Warning: Structure cleaning not yet implemented. Returning original structure.")
     return structure
 
@@ -110,10 +128,6 @@ def to_graph(structure, **kwargs):
     Note:
         Graph conversion implementation coming soon.
     """
-    # TODO: Implement GraphBuilder
-    # graph_builder = GraphBuilder(**kwargs)
-    # return graph_builder.build_graph(structure)
-    
     raise NotImplementedError("Graph conversion not yet implemented. Coming soon!")
 
 
@@ -130,11 +144,16 @@ def batch_process(structures, operations=['clean', 'validate'], **kwargs):
         List[Crystal]: Processed structures
         
     Examples:
-        >>> files = ["struct1.cif", "struct2.cif", "struct3.cif"]
+        >>> files = ["struct1.cif", "struct2.cif", "struct3.cif"]  
         >>> processed = crysio.batch_process(files)
         >>> processed = crysio.batch_process(structures, operations=['clean', 'to_graph'])
     """
-    from tqdm import tqdm
+    try:
+        from tqdm import tqdm
+    except ImportError:
+        # Fallback if tqdm not available
+        def tqdm(iterable, desc=""):
+            return iterable
     
     results = []
     for structure in tqdm(structures, desc="Processing structures"):
@@ -148,11 +167,8 @@ def batch_process(structures, operations=['clean', 'validate'], **kwargs):
                 structure = clean(structure)
             if 'validate' in operations:
                 print("Warning: Validation not yet implemented")
-                # validator = StructureValidator()
-                # validator.validate(structure)
             if 'to_graph' in operations:
                 print("Warning: Graph conversion not yet implemented")
-                # structure = to_graph(structure, **kwargs)
                 
             results.append(structure)
         except Exception as e:
@@ -167,7 +183,7 @@ class _VisualizationManager:
     """Manager class for visualization functions - placeholder implementation."""
     
     def __init__(self):
-        print("Warning: Visualization modules not yet implemented.")
+        pass  # Don't print warning on every import
     
     def ball_and_stick_3d(self, structure, **kwargs):
         """Placeholder for 3D ball-and-stick visualization."""
@@ -206,14 +222,14 @@ __all__ = [
     # Visualization
     "visualize",
     
-    # Core classes (implemented)
+    # Core classes (if available)
     "Crystal",
     "CIFParser",
     "POSCARParser",
     "auto_detect_format",
     "get_parser",
     
-    # Exceptions (implemented)
+    # Exceptions (if available)
     "CrysioError",
     "ParsingError",
     "ValidationError", 
@@ -222,17 +238,4 @@ __all__ = [
     "GraphBuildingError",
     "VisualizationError",
     "ConfigurationError",
-    
-    # Placeholder classes (commented out until implemented)
-    # "StructureCleaner",
-    # "StructureValidator", 
-    # "GraphBuilder",
-    # "FormatConverter",
-    # "Crystal2DVisualizer",
-    # "Crystal3DVisualizer", 
-    # "InteractiveCrystalViz",
-    # "StructureAnalysisPlots",
-    # "PropertyCorrelationPlots",
-    # "MaterialsProjectAPI",
-    # "Config",
 ]
