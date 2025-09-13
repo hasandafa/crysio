@@ -1,4 +1,3 @@
-# crysio/__init__.py
 """
 Crysio: Crystal I/O toolkit for preprocessing and visualizing 
 crystal structures for machine learning applications.
@@ -10,31 +9,32 @@ __version__ = "0.1.0"
 __author__ = "Dafa, Abdullah Hasan"
 __email__ = "dafa.abdullahhasan@gmail.com"
 
-# Core imports
+# Core imports - ONLY import what exists
 from .core.crystal import Crystal
-from .core.parsers import CIFParser, POSCARParser
-from .core.cleaners import StructureCleaner
-from .core.validators import StructureValidator
+from .core.parsers import CIFParser, POSCARParser, auto_detect_format, get_parser
 
-# Converter imports  
-from .converters.graph_builder import GraphBuilder
-from .converters.format_converter import FormatConverter
-
-# Visualizer imports
-from .visualizers.crystal_viz import Crystal2DVisualizer, Crystal3DVisualizer, InteractiveCrystalViz
-from .visualizers.analysis_plots import StructureAnalysisPlots, PropertyCorrelationPlots
-
-# API imports
-from .api.materials_project import MaterialsProjectAPI
-
-# Utils imports
-from .utils.config import Config
+# Utils imports - exceptions are implemented
 from .utils.exceptions import (
     CrysioError,
     ParsingError, 
     ValidationError,
-    ConversionError
+    ConversionError,
+    APIError,
+    GraphBuildingError,
+    VisualizationError,
+    ConfigurationError
 )
+
+# Placeholder imports for future implementation
+# These will be uncommented as we implement them
+# from .core.cleaners import StructureCleaner
+# from .core.validators import StructureValidator
+# from .converters.graph_builder import GraphBuilder
+# from .converters.format_converter import FormatConverter
+# from .visualizers.crystal_viz import Crystal2DVisualizer, Crystal3DVisualizer, InteractiveCrystalViz
+# from .visualizers.analysis_plots import StructureAnalysisPlots, PropertyCorrelationPlots
+# from .api.materials_project import MaterialsProjectAPI
+# from .utils.config import Config
 
 
 # High-level convenience functions
@@ -76,13 +76,20 @@ def clean(structure, **kwargs):
     Examples:
         >>> clean_structure = crysio.clean(structure)
         >>> clean_structure = crysio.clean(structure, remove_duplicates=True)
+        
+    Note:
+        Currently returns structure as-is. Full cleaning implementation coming soon.
     """
-    cleaner = StructureCleaner(**kwargs)
-    validator = StructureValidator()
+    # TODO: Implement StructureCleaner and StructureValidator
+    # cleaner = StructureCleaner(**kwargs)
+    # validator = StructureValidator()
+    # 
+    # cleaned = cleaner.clean(structure)
+    # validator.validate(cleaned)
+    # return cleaned
     
-    cleaned = cleaner.clean(structure)
-    validator.validate(cleaned)
-    return cleaned
+    print("Warning: Structure cleaning not yet implemented. Returning original structure.")
+    return structure
 
 
 def to_graph(structure, **kwargs):
@@ -99,9 +106,15 @@ def to_graph(structure, **kwargs):
     Examples:
         >>> graph = crysio.to_graph(structure)
         >>> graph = crysio.to_graph(structure, cutoff_radius=5.0)
+        
+    Note:
+        Graph conversion implementation coming soon.
     """
-    graph_builder = GraphBuilder(**kwargs)
-    return graph_builder.build_graph(structure)
+    # TODO: Implement GraphBuilder
+    # graph_builder = GraphBuilder(**kwargs)
+    # return graph_builder.build_graph(structure)
+    
+    raise NotImplementedError("Graph conversion not yet implemented. Coming soon!")
 
 
 def batch_process(structures, operations=['clean', 'validate'], **kwargs):
@@ -130,14 +143,16 @@ def batch_process(structures, operations=['clean', 'validate'], **kwargs):
             if isinstance(structure, (str, Path)):
                 structure = load_structure(structure)
                 
-            # Apply operations
+            # Apply operations (currently limited)
             if 'clean' in operations:
                 structure = clean(structure)
             if 'validate' in operations:
-                validator = StructureValidator()
-                validator.validate(structure)
+                print("Warning: Validation not yet implemented")
+                # validator = StructureValidator()
+                # validator.validate(structure)
             if 'to_graph' in operations:
-                structure = to_graph(structure, **kwargs)
+                print("Warning: Graph conversion not yet implemented")
+                # structure = to_graph(structure, **kwargs)
                 
             results.append(structure)
         except Exception as e:
@@ -147,55 +162,28 @@ def batch_process(structures, operations=['clean', 'validate'], **kwargs):
     return results
 
 
-# Visualization namespace
+# Visualization namespace - placeholder implementation
 class _VisualizationManager:
-    """Manager class for visualization functions."""
+    """Manager class for visualization functions - placeholder implementation."""
     
     def __init__(self):
-        self._2d = None
-        self._3d = None
-        self._interactive = None
-        self._analysis = None
-    
-    @property
-    def crystal_2d(self):
-        if self._2d is None:
-            self._2d = Crystal2DVisualizer()
-        return self._2d
-    
-    @property
-    def crystal_3d(self):
-        if self._3d is None:
-            self._3d = Crystal3DVisualizer()
-        return self._3d
-    
-    @property
-    def interactive(self):
-        if self._interactive is None:
-            self._interactive = InteractiveCrystalViz()
-        return self._interactive
-    
-    @property
-    def analysis(self):
-        if self._analysis is None:
-            self._analysis = StructureAnalysisPlots()
-        return self._analysis
+        print("Warning: Visualization modules not yet implemented.")
     
     def ball_and_stick_3d(self, structure, **kwargs):
-        """Quick access to 3D ball-and-stick visualization."""
-        return self.crystal_3d.ball_and_stick_model(structure, **kwargs)
+        """Placeholder for 3D ball-and-stick visualization."""
+        raise NotImplementedError("3D visualization not yet implemented. Coming soon!")
     
     def interactive_3d(self, structure, **kwargs):
-        """Quick access to interactive 3D visualization."""
-        return self.interactive.interactive_3d_viewer(structure, **kwargs)
+        """Placeholder for interactive 3D visualization."""
+        raise NotImplementedError("Interactive visualization not yet implemented. Coming soon!")
     
     def property_correlation_heatmap(self, dataset, **kwargs):
-        """Quick access to property correlation analysis."""
-        return self.analysis.property_vs_composition(dataset, **kwargs)
+        """Placeholder for property correlation analysis."""
+        raise NotImplementedError("Property analysis plots not yet implemented. Coming soon!")
     
     def data_quality_dashboard(self, dataset, **kwargs):
-        """Quick access to data quality assessment."""
-        return self.analysis.missing_data_heatmap(dataset, **kwargs)
+        """Placeholder for data quality assessment."""
+        raise NotImplementedError("Data quality visualization not yet implemented. Coming soon!")
 
 
 # Global visualization instance
@@ -218,31 +206,33 @@ __all__ = [
     # Visualization
     "visualize",
     
-    # Core classes
+    # Core classes (implemented)
     "Crystal",
     "CIFParser",
-    "POSCARParser", 
-    "StructureCleaner",
-    "StructureValidator",
+    "POSCARParser",
+    "auto_detect_format",
+    "get_parser",
     
-    # Converters
-    "GraphBuilder",
-    "FormatConverter",
-    
-    # Visualizers
-    "Crystal2DVisualizer",
-    "Crystal3DVisualizer", 
-    "InteractiveCrystalViz",
-    "StructureAnalysisPlots",
-    "PropertyCorrelationPlots",
-    
-    # API
-    "MaterialsProjectAPI",
-    
-    # Utils
-    "Config",
+    # Exceptions (implemented)
     "CrysioError",
     "ParsingError",
     "ValidationError", 
     "ConversionError",
+    "APIError",
+    "GraphBuildingError",
+    "VisualizationError",
+    "ConfigurationError",
+    
+    # Placeholder classes (commented out until implemented)
+    # "StructureCleaner",
+    # "StructureValidator", 
+    # "GraphBuilder",
+    # "FormatConverter",
+    # "Crystal2DVisualizer",
+    # "Crystal3DVisualizer", 
+    # "InteractiveCrystalViz",
+    # "StructureAnalysisPlots",
+    # "PropertyCorrelationPlots",
+    # "MaterialsProjectAPI",
+    # "Config",
 ]
