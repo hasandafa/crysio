@@ -1,94 +1,59 @@
 [build-system]
-requires = ["setuptools>=64", "wheel"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "crysio"
-version = "0.2.0"
+version = "0.2.1"
 description = "Crystal I/O toolkit for preprocessing and visualizing crystal structures for machine learning applications"
 readme = "README.md"
 license = {text = "MIT"}
+keywords = ["materials-science", "crystallography", "machine-learning", "crystal-structure", "vasp", "cif", "graph-neural-networks"]
 authors = [
-    {name = "Your Name", email = "your.email@example.com"}
+    {name = "Dafa, Abdullah Hasan", email = "dafa.abdullahhasan@gmail.com"}
 ]
 maintainers = [
-    {name = "Your Name", email = "your.email@example.com"}
-]
-keywords = [
-    "materials science",
-    "crystal structures", 
-    "machine learning",
-    "graph neural networks",
-    "data preprocessing",
-    "visualization",
-    "CIF",
-    "POSCAR"
+    {name = "Dafa, Abdullah Hasan", email = "dafa.abdullahhasan@gmail.com"}
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Topic :: Scientific/Engineering :: Chemistry",
-    "Topic :: Scientific/Engineering :: Physics",
+    "Programming Language :: Python :: 3.12",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.8"
 dependencies = [
-    # Core scientific computing
     "numpy>=1.21.0",
-    "pandas>=1.3.0",
     "scipy>=1.7.0",
-    
-    # Materials science specific
-    "pymatgen>=2023.1.0",
-    "ase>=3.22.0",
-    
-    # Graph processing  
-    "torch>=1.12.0",
-    "torch-geometric>=2.2.0",
-    "networkx>=2.8",
-    
-    # Visualization
     "matplotlib>=3.5.0",
     "plotly>=5.0.0",
-    "py3dmol>=2.0.0",
-    "seaborn>=0.11.0",
-    
-    # File handling & API
-    "requests>=2.28.0",
-    "h5py>=3.7.0",
-    "tqdm>=4.64.0",
-    
-    # Configuration
-    "pydantic>=1.10.0",
-    "python-dotenv>=0.19.0",
-    
-    # Materials Project API (modern)
-    "mp-api>=0.33.0"
+    "pandas>=1.3.0",
+    "requests>=2.25.0",
+    "tqdm>=4.62.0",
+    "torch>=1.9.0",
+    "torch-geometric>=2.0.0",
+    "mp-api>=0.33.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "black>=22.0.0",
-    "isort>=5.10.0",
-    "flake8>=5.0.0",
-    "mypy>=0.991",
-    "pre-commit>=2.20.0"
-]
-docs = [
-    "mkdocs>=1.4.0",
-    "mkdocs-material>=8.5.0",
-    "mkdocstrings[python]>=0.19.0"
-]
-jupyter = [
-    "jupyter>=1.0.0",
-    "ipywidgets>=8.0.0",
-    "jupyterlab>=3.4.0"
+    "pytest>=6.0",
+    "pytest-cov>=2.12",
+    "black>=21.0",
+    "flake8>=3.9",
+    "mypy>=0.910",
+    "sphinx>=4.0",
+    "sphinx-rtd-theme>=0.5",
+    "jupyter>=1.0",
+    "notebook>=6.4",
 ]
 
 [project.urls]
@@ -96,36 +61,59 @@ Homepage = "https://github.com/hasandafa/crysio"
 Repository = "https://github.com/hasandafa/crysio.git"
 Documentation = "https://hasandafa.github.io/crysio/"
 "Bug Tracker" = "https://github.com/hasandafa/crysio/issues"
+Changelog = "https://github.com/hasandafa/crysio/blob/master/CHANGELOG.md"
 
 [project.scripts]
 crysio = "crysio.cli:main"
 
 [tool.setuptools.packages.find]
-where = ["."]
 include = ["crysio*"]
 
 [tool.setuptools.package-data]
-crysio = ["data/sample_structures/*"]
+crysio = ["data/sample_structures/*", "data/atomic_properties/*"]
 
 [tool.black]
-line-length = 88
-target-version = ['py39']
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
 include = '\.pyi?$'
-
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-line_length = 88
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
 
 [tool.pytest.ini_options]
-minversion = "7.0"
-addopts = "-ra -q --strict-markers --cov=crysio"
-testpaths = [
-    "tests",
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--cov=crysio",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-fail-under=80",
+    "-v"
 ]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.8"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true

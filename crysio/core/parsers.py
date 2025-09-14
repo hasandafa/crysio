@@ -3,6 +3,8 @@ Crystal structure file parsers for various formats.
 
 This module provides parsers for different crystallographic file formats
 including CIF (Crystallographic Information File) and POSCAR (VASP format).
+
+v0.2.1 - Fixed POSCAR parsing bug with Materials Project format
 """
 
 import re
@@ -513,6 +515,8 @@ class POSCARParser(BaseParser):
     6. Coordinate type (Direct/Cartesian)
     7. Atomic coordinates
     
+    v0.2.1 - Fixed parsing bug for Materials Project POSCAR format
+    
     Examples:
         >>> parser = POSCARParser()
         >>> crystal = parser.parse("POSCAR")
@@ -546,8 +550,8 @@ class POSCARParser(BaseParser):
                 self.current_file = "string_input"
                 lines = str(filepath_or_content).split('\n')
             
-            # Clean lines
-            lines = [line.strip() for line in lines if line.strip()]
+            # Clean lines and remove extra information (like Si4+, C4-)
+            lines = [self._clean_poscar_line(line.strip()) for line in lines if line.strip()]
             
             if not self.validate_format('\n'.join(lines)):
                 raise ParsingError("Invalid POSCAR format", self.current_file)
@@ -581,6 +585,30 @@ class POSCARParser(BaseParser):
                 raise
             else:
                 raise ParsingError(f"Unexpected error during POSCAR parsing: {str(e)}", self.current_file)
+    
+    def _clean_poscar_line(self, line: str) -> str:
+        """
+        Clean POSCAR line by removing extra information like charge states.
+        
+        Materials Project often includes charge states (Si4+, C4-) at the end of
+        coordinate lines which need to be removed for proper parsing.
+        """
+        # For coordinate lines, keep only the first 3 numbers (x, y, z coordinates)
+        parts = line.split()
+        
+        # If line has more than 3 parts and the first 3 are numbers, 
+        # it's likely a coordinate line with extra info
+        if len(parts) > 3:
+            try:
+                # Check if first 3 parts are numbers
+                [float(x) for x in parts[:3]]
+                # If successful, keep only coordinates
+                return '   '.join(f"{float(x):>18.16f}" for x in parts[:3])
+            except ValueError:
+                # Not a coordinate line, return as is
+                return line
+        
+        return line
     
     def validate_format(self, content: str) -> bool:
         """
@@ -646,40 +674,87 @@ class POSCARParser(BaseParser):
         """
         Parse element names and atom counts.
         
+        FIXED v0.2.1: Corrected line offset calculation to properly handle
+        both VASP 4 and VASP 5+ formats, especially Materials Project POSCAR files.
+        
         Returns:
             Tuple of (elements, counts, line_offset)
+            line_offset indicates how many lines were consumed
         """
-        # Try to parse first line as element names (VASP 5+ format)
+        elements = []
+        counts = []
+        line_offset = 0
+        
+        # Check first line - does it contain element symbols or numbers?
         first_line = lines[0].split()
         
-        # Check if first line contains element symbols
-        if all(item.isalpha() and len(item) <= 2 for item in first_line):
-            # VASP 5+ format with element names
+        # More robust check for element symbols
+        # Element symbols are typically 1-2 characters, start with uppercase, may have lowercase
+        def is_element_symbol(token: str) -> bool:
+            """Check if token looks like an element symbol."""
+            if len(token) > 2:
+                return False
+            if not token[0].isupper():
+                return False
+            if len(token) == 2 and not token[1].islower():
+                return False
+            # Additional check: must be alphabetic
+            return token.isalpha()
+        
+        # Check if all tokens in first line are element-like
+        all_elements = all(is_element_symbol(token) for token in first_line)
+        
+        if all_elements and len(first_line) > 0:
+            # VASP 5+ format: Element names are present
             elements = first_line
+            line_offset += 1
+            
+            # Next line should be atom counts
+            if line_offset >= len(lines):
+                raise ParsingError("Missing atom counts after element names", self.current_file)
+            
             try:
-                counts = [int(x) for x in lines[1].split()]
-                return elements, counts, 1
-            except ValueError:
-                raise ParsingError("Invalid atom counts", self.current_file)
+                counts = [int(x) for x in lines[line_offset].split()]
+            except (ValueError, IndexError) as e:
+                raise ParsingError(f"Invalid atom counts: {str(e)}", self.current_file)
+            
+            line_offset += 1  # Move past the counts line
+            
         else:
-            # VASP 4 format without element names
+            # VASP 4 format: Only numbers, no element names  
             try:
                 counts = [int(x) for x in first_line]
                 # Generate generic element names
-                elements = [f"El{i+1}" for i in range(len(counts))]
-                return elements, counts, 0
-            except ValueError:
-                raise ParsingError("Invalid atom counts", self.current_file)
+                elements = [f"Element{i+1}" for i in range(len(counts))]
+                line_offset += 1  # Move past the counts line
+            except ValueError as e:
+                raise ParsingError(f"Invalid atom counts in first line: {str(e)}", self.current_file)
+        
+        # Validate consistency
+        if len(elements) != len(counts):
+            raise ParsingError(f"Mismatch: {len(elements)} elements vs {len(counts)} counts", self.current_file)
+        
+        if not elements or not counts:
+            raise ParsingError("No elements or atom counts found", self.current_file)
+        
+        return elements, counts, line_offset
     
     def _parse_coordinate_type(self, line: str) -> str:
         """Parse coordinate type (Direct/Cartesian)."""
+        if not line or not line.strip():
+            raise ParsingError("Missing coordinate type line", self.current_file)
+        
         coord_type = line.strip().lower()
+        
         if coord_type.startswith('d'):
             return 'Direct'
         elif coord_type.startswith('c') or coord_type.startswith('k'):
             return 'Cartesian'
         else:
-            raise ParsingError(f"Unknown coordinate type: {line}", self.current_file)
+            raise ParsingError(
+                f"Unknown coordinate type: '{line.strip()}'. Expected 'Direct' or 'Cartesian'", 
+                self.current_file
+            )
     
     def _parse_atomic_positions(
         self, 
@@ -696,10 +771,18 @@ class POSCARParser(BaseParser):
         for element, count in zip(elements, counts):
             for i in range(count):
                 if line_idx >= len(lines):
-                    raise ParsingError("Not enough atomic positions", self.current_file)
+                    raise ParsingError(
+                        f"Not enough atomic positions. Expected {sum(counts)}, got {line_idx}", 
+                        self.current_file
+                    )
                 
                 try:
-                    coords = [float(x) for x in lines[line_idx].split()[:3]]
+                    # Split line and take only first 3 values (coordinates)
+                    coord_parts = lines[line_idx].split()
+                    if len(coord_parts) < 3:
+                        raise ValueError(f"Expected at least 3 coordinates, got {len(coord_parts)}")
+                    
+                    coords = [float(x) for x in coord_parts[:3]]
                     position = np.array(coords)
                     
                     # Convert Cartesian to fractional if needed
@@ -717,8 +800,10 @@ class POSCARParser(BaseParser):
                     sites.append(site)
                     
                 except (ValueError, IndexError) as e:
-                    raise ParsingError(f"Invalid atomic position on line {line_idx}: {str(e)}", 
-                                     self.current_file)
+                    raise ParsingError(
+                        f"Invalid atomic position on line {line_idx + 1}: {str(e)}", 
+                        self.current_file
+                    )
                 
                 line_idx += 1
         

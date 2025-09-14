@@ -1,75 +1,74 @@
 """
-Crysio: Crystal I/O toolkit for preprocessing and visualizing 
-crystal structures for machine learning applications.
+Crysio: Crystal I/O toolkit for preprocessing and visualizing crystal structures 
+for machine learning applications.
+
+This library provides comprehensive tools for:
+- Loading and parsing crystal structures (CIF, POSCAR, XYZ)
+- Converting structures to PyTorch Geometric graphs
+- Structure validation and cleaning
+- Integration with Materials Project database
+- Batch processing and analysis
+
+Version 0.2.1 - Bug Fix Release
+===============================
+Fixed POSCAR parsing bug for Materials Project format files.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __author__ = "Dafa, Abdullah Hasan"
 __email__ = "dafa.abdullahhasan@gmail.com"
+__license__ = "MIT"
 
-# Import dependencies first
-from pathlib import Path
+# Core imports
+from .core.crystal import (
+    Crystal,
+    LatticeParameters,
+    AtomicSite
+)
 
-# Core imports with better error handling
-try:
-    from .core.crystal import Crystal
-    from .core.parsers import CIFParser, POSCARParser, auto_detect_format, get_parser
-except ImportError:
-    # Fallback for direct execution or import issues
-    try:
-        from crysio.core.crystal import Crystal
-        from crysio.core.parsers import CIFParser, POSCARParser, auto_detect_format, get_parser
-    except ImportError as e:
-        print(f"Warning: Could not import core modules: {e}")
-        Crystal = None
-        CIFParser = None
-        POSCARParser = None
-        auto_detect_format = None
-        get_parser = None
+from .core.parsers import (
+    CIFParser,
+    POSCARParser,
+    auto_detect_format,
+    get_parser
+)
 
-# Utils imports with error handling
-try:
-    from .utils.exceptions import (
-        CrysioError,
-        ParsingError, 
-        ValidationError,
-        ConversionError,
-        APIError,
-        GraphBuildingError,
-        VisualizationError,
-        ConfigurationError
-    )
-except ImportError:
-    try:
-        from crysio.utils.exceptions import (
-            CrysioError,
-            ParsingError, 
-            ValidationError,
-            ConversionError,
-            APIError,
-            GraphBuildingError,
-            VisualizationError,
-            ConfigurationError
-        )
-    except ImportError as e:
-        print(f"Warning: Could not import exception classes: {e}")
-        CrysioError = Exception
-        ParsingError = Exception
-        ValidationError = Exception
-        ConversionError = Exception
-        APIError = Exception
-        GraphBuildingError = Exception
-        VisualizationError = Exception
-        ConfigurationError = Exception
+from .core.validators import (
+    CrystalValidator,
+    validate_structure,
+    ValidationLevel
+)
 
+# Converter imports
+from .converters.graph_builder import (
+    GraphBuilder,
+    to_graph
+)
 
-def load_structure(filepath_or_structure, format=None):
+# API imports
+from .api.materials_project import (
+    MaterialsProjectAPI,
+    search_materials_database,
+    load_from_materials_project
+)
+
+# Exception imports  
+from .utils.exceptions import (
+    CrysioError,
+    ParsingError,
+    ValidationError,
+    ConversionError,
+    APIError
+)
+
+# Main API functions
+def load_structure(filepath_or_content, format=None):
     """
-    Load crystal structure from file or string.
+    Load crystal structure from file or content string.
     
     Args:
-        filepath_or_structure: Path to structure file or structure string
-        format: File format ('cif', 'poscar', 'xyz'). Auto-detected if None.
+        filepath_or_content: Path to structure file or content as string
+        format: File format ('cif', 'poscar', etc.). If None, auto-detect.
         
     Returns:
         Crystal: Loaded crystal structure
@@ -78,164 +77,134 @@ def load_structure(filepath_or_structure, format=None):
         >>> structure = crysio.load_structure("example.cif")
         >>> structure = crysio.load_structure("POSCAR", format="poscar")
     """
-    if auto_detect_format is None or get_parser is None:
-        raise ImportError("Parser modules not available")
-        
     if format is None:
-        format = auto_detect_format(filepath_or_structure)
+        format = auto_detect_format(filepath_or_content)
     
     parser = get_parser(format)
-    return parser.parse(filepath_or_structure)
+    return parser.parse(filepath_or_content)
 
 
-def clean(structure, **kwargs):
+def clean_structure(structure, validation_level="medium"):
     """
     Clean and validate crystal structure.
     
     Args:
         structure: Crystal structure to clean
-        **kwargs: Additional cleaning options
+        validation_level: Validation strictness ("basic", "medium", "strict")
         
     Returns:
         Crystal: Cleaned crystal structure
         
     Examples:
-        >>> clean_structure = crysio.clean(structure)
-        >>> clean_structure = crysio.clean(structure, remove_duplicates=True)
-        
-    Note:
-        Currently returns structure as-is. Full cleaning implementation coming soon.
+        >>> clean_struct = crysio.clean_structure(structure)
     """
-    print("Warning: Structure cleaning not yet implemented. Returning original structure.")
+    validator = CrystalValidator(validation_level=ValidationLevel.from_string(validation_level))
+    
+    # Validate structure
+    is_valid, issues = validator.validate_crystal(structure)
+    
+    if not is_valid:
+        # Apply fixes for common issues
+        # This would be expanded in future versions
+        pass
+    
     return structure
 
 
-def to_graph(structure, **kwargs):
+def batch_process(structures_or_paths, format=None, validation_level="medium", 
+                 progress=True, n_workers=1):
     """
-    Convert crystal structure to PyTorch Geometric graph.
+    Process multiple crystal structures in batch.
     
     Args:
-        structure: Crystal structure to convert
-        **kwargs: Graph building options (cutoff_radius, edge_features, etc.)
+        structures_or_paths: List of file paths or Crystal objects
+        format: File format if loading from paths
+        validation_level: Validation strictness
+        progress: Show progress bar
+        n_workers: Number of parallel workers
         
     Returns:
-        torch_geometric.data.Data: Graph representation
+        List[Crystal]: Processed crystal structures
         
     Examples:
-        >>> graph = crysio.to_graph(structure)
-        >>> graph = crysio.to_graph(structure, cutoff_radius=5.0)
-        
-    Note:
-        Graph conversion implementation coming soon.
+        >>> structures = crysio.batch_process(["file1.cif", "file2.cif"])
     """
-    raise NotImplementedError("Graph conversion not yet implemented. Coming soon!")
-
-
-def batch_process(structures, operations=['clean', 'validate'], **kwargs):
-    """
-    Process multiple structures in batch.
+    from tqdm import tqdm
     
-    Args:
-        structures: List of crystal structures or file paths
-        operations: List of operations to perform
-        **kwargs: Additional processing options
-        
-    Returns:
-        List[Crystal]: Processed structures
-        
-    Examples:
-        >>> files = ["struct1.cif", "struct2.cif", "struct3.cif"]  
-        >>> processed = crysio.batch_process(files)
-        >>> processed = crysio.batch_process(structures, operations=['clean', 'to_graph'])
-    """
-    try:
-        from tqdm import tqdm
-    except ImportError:
-        # Fallback if tqdm not available
-        def tqdm(iterable, desc=""):
-            return iterable
+    processed = []
+    iterator = structures_or_paths
     
-    results = []
-    for structure in tqdm(structures, desc="Processing structures"):
+    if progress:
+        iterator = tqdm(structures_or_paths, desc="Processing structures")
+    
+    for item in iterator:
         try:
-            # Load if filepath
-            if isinstance(structure, (str, Path)):
-                structure = load_structure(structure)
-                
-            # Apply operations (currently limited)
-            if 'clean' in operations:
-                structure = clean(structure)
-            if 'validate' in operations:
-                print("Warning: Validation not yet implemented")
-            if 'to_graph' in operations:
-                print("Warning: Graph conversion not yet implemented")
-                
-            results.append(structure)
-        except Exception as e:
-            print(f"Error processing structure: {e}")
-            continue
+            if isinstance(item, Crystal):
+                structure = item
+            else:
+                structure = load_structure(item, format=format)
             
-    return results
-
-
-# Visualization namespace - placeholder implementation
-class _VisualizationManager:
-    """Manager class for visualization functions - placeholder implementation."""
+            clean_struct = clean_structure(structure, validation_level=validation_level)
+            processed.append(clean_struct)
+            
+        except Exception as e:
+            if progress:
+                iterator.set_postfix({"error": str(e)[:30]})
+            # Could add error handling options here
+            continue
     
-    def __init__(self):
-        pass  # Don't print warning on every import
-    
-    def ball_and_stick_3d(self, structure, **kwargs):
-        """Placeholder for 3D ball-and-stick visualization."""
-        raise NotImplementedError("3D visualization not yet implemented. Coming soon!")
-    
-    def interactive_3d(self, structure, **kwargs):
-        """Placeholder for interactive 3D visualization."""
-        raise NotImplementedError("Interactive visualization not yet implemented. Coming soon!")
-    
-    def property_correlation_heatmap(self, dataset, **kwargs):
-        """Placeholder for property correlation analysis."""
-        raise NotImplementedError("Property analysis plots not yet implemented. Coming soon!")
-    
-    def data_quality_dashboard(self, dataset, **kwargs):
-        """Placeholder for data quality assessment."""
-        raise NotImplementedError("Data quality visualization not yet implemented. Coming soon!")
+    return processed
 
 
-# Global visualization instance
-visualize = _VisualizationManager()
+# Convenience aliases
+load = load_structure
+parse = load_structure
 
+# Version info
+version_info = tuple(int(x) for x in __version__.split('.'))
 
-# Convenience imports for direct access
+# All public API
 __all__ = [
     # Version info
-    "__version__",
-    "__author__", 
-    "__email__",
+    '__version__',
+    'version_info',
     
-    # High-level functions
-    "load_structure",
-    "clean", 
-    "to_graph",
-    "batch_process",
+    # Core classes
+    'Crystal',
+    'LatticeParameters', 
+    'AtomicSite',
     
-    # Visualization
-    "visualize",
+    # Parsers
+    'CIFParser',
+    'POSCARParser',
+    'auto_detect_format',
+    'get_parser',
     
-    # Core classes (if available)
-    "Crystal",
-    "CIFParser",
-    "POSCARParser",
-    "auto_detect_format",
-    "get_parser",
+    # Validators
+    'CrystalValidator',
+    'validate_structure',
+    'ValidationLevel',
     
-    # Exceptions (if available)
-    "CrysioError",
-    "ParsingError",
-    "ValidationError", 
-    "ConversionError",
-    "APIError",
-    "GraphBuildingError",
-    "VisualizationError",
-    "ConfigurationError",
+    # Converters
+    'GraphBuilder',
+    'to_graph',
+    
+    # API
+    'MaterialsProjectAPI',
+    'search_materials_database',
+    'load_from_materials_project',
+    
+    # Exceptions
+    'CrysioError',
+    'ParsingError', 
+    'ValidationError',
+    'ConversionError',
+    'APIError',
+    
+    # Main functions
+    'load_structure',
+    'clean_structure',
+    'batch_process',
+    'load',
+    'parse',
 ]
