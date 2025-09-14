@@ -65,41 +65,42 @@ crysio/
 ### 5. .gitignore for Python projects
 ### 6. requirements.txt
 
-crysio/ v0.2.0
-├── README.md                    ✅ UPDATED (v0.2.0 changelog, new features)
-├── LICENSE                      ❌ TODO
-├── pyproject.toml              ✅ UPDATED (v0.2.0, mp-api dependency)
-├── requirements.txt            ✅ UPDATED (with mp-api>=0.33.0)
-├── .gitignore                  ✅ DONE
-├── setup.py                    ✅ DONE
+crysio/ v0.2.2
+├── README.md                    ✅ COMPLETE (v0.2.2 changelog, bug fixes)
+├── CHANGELOG.md                 ✅ COMPLETE (v0.2.2 release notes)
+├── LICENSE                      ✅ COMPLETE (MIT License 2025)
+├── pyproject.toml              ✅ COMPLETE (version = "0.2.2")
+├── requirements.txt            ✅ COMPLETE (mp-api>=0.33.0)
+├── .gitignore                  ✅ COMPLETE
+├── setup.py                    ✅ COMPLETE (version="0.2.2")
 ├── crysio/
-│   ├── __init__.py             ✅ UPDATED (v0.2.0 complete API)
+│   ├── __init__.py             ✅ COMPLETE (__version__ = "0.2.2")
 │   ├── core/
-│   │   ├── __init__.py         ✅ UPDATED (includes validators)
-│   │   ├── crystal.py          ✅ DONE (complete Crystal class)
-│   │   ├── parsers.py          ✅ DONE (CIF + POSCAR parsers)
-│   │   ├── cleaners.py         ❌ TODO
-│   │   └── validators.py       ✅ DONE (comprehensive validation framework)
+│   │   ├── __init__.py         ✅ COMPLETE
+│   │   ├── crystal.py          ✅ COMPLETE
+│   │   ├── parsers.py          ✅ COMPLETE (POSCAR bug fixed v0.2.1)
+│   │   ├── cleaners.py         ❌ TODO (Phase 4)
+│   │   └── validators.py       ✅ COMPLETE
 │   ├── converters/
-│   │   ├── __init__.py         ✅ DONE
-│   │   ├── graph_builder.py    ✅ DONE (PyTorch Geometric integration)
-│   │   └── format_converter.py ❌ TODO
+│   │   ├── __init__.py         ✅ COMPLETE
+│   │   ├── graph_builder.py    ✅ COMPLETE (working perfectly)
+│   │   └── format_converter.py ❌ TODO (Phase 4)
 │   ├── visualizers/
-│   │   ├── __init__.py         ❌ TODO
-│   │   ├── crystal_viz.py      ❌ TODO
-│   │   └── analysis_plots.py   ❌ TODO
+│   │   ├── __init__.py         ❌ TODO (Phase 4)
+│   │   ├── crystal_viz.py      ❌ TODO (Phase 4)
+│   │   └── analysis_plots.py   ❌ TODO (Phase 4)
 │   ├── api/
-│   │   ├── __init__.py         ✅ DONE
-│   │   └── materials_project.py ✅ DONE (modern mp-api integration)
+│   │   ├── __init__.py         ✅ COMPLETE (v0.2.2 - fixed imports)
+│   │   └── materials_project.py ✅ COMPLETE (v0.2.2 - search & field fixes)
 │   ├── utils/
-│   │   ├── __init__.py         ✅ UPDATED (expanded exceptions)
-│   │   ├── config.py           ❌ TODO
-│   │   ├── helpers.py          ❌ TODO
-│   │   └── exceptions.py       ✅ DONE (complete exception hierarchy)
+│   │   ├── __init__.py         ✅ COMPLETE
+│   │   ├── config.py           ❌ TODO (Phase 4)
+│   │   ├── helpers.py          ❌ TODO (Phase 4)
+│   │   └── exceptions.py       ✅ COMPLETE
 │   └── data/
-│       ├── __init__.py         ❌ TODO
-│       └── sample_structures/  ❌ TODO
-│       └── atomic_properties/  ❌ TODO
-├── examples/                   ❌ TODO (all notebooks)
-├── tests/                      ❌ TODO (all test files)
-└── docs/                       ❌ TODO (all documentation)
+│       ├── __init__.py         ❌ TODO (Phase 5)
+│       └── sample_structures/  ❌ TODO (Phase 5)
+│       └── atomic_properties/  ❌ TODO (Phase 5)
+├── examples/                   ❌ TODO (Phase 4 - all notebooks)
+├── tests/                      ❌ TODO (Phase 4 - all test files)
+└── docs/                       ❌ TODO (Phase 4 - all documentation)
