@@ -33,24 +33,42 @@ from .core.parsers import (
     get_parser
 )
 
+# FIXED: Import what actually exists in validators.py
 from .core.validators import (
-    CrystalValidator,
-    validate_structure,
-    ValidationLevel
+    StructureValidator,
+    ValidationResult,
+    BaseValidator,
+    LatticeValidator,
+    AtomicPositionValidator,
+    CompositionValidator
 )
 
-# Converter imports
-from .converters.graph_builder import (
-    GraphBuilder,
-    to_graph
-)
+# Converter imports - only import if modules exist
+try:
+    from .converters.graph_builder import (
+        GraphBuilder,
+        to_graph
+    )
+except ImportError:
+    # GraphBuilder not available, define dummy functions
+    GraphBuilder = None
+    def to_graph(*args, **kwargs):
+        raise ImportError("GraphBuilder not available. Install torch-geometric for graph conversion.")
 
-# API imports
-from .api.materials_project import (
-    MaterialsProjectAPI,
-    search_materials_database,
-    load_from_materials_project
-)
+# API imports - only import if modules exist
+try:
+    from .api.materials_project import (
+        MaterialsProjectAPI,
+        search_materials_database,
+        load_from_materials_project
+    )
+except ImportError:
+    # API not available, define dummy functions
+    MaterialsProjectAPI = None
+    def search_materials_database(*args, **kwargs):
+        raise ImportError("Materials Project API not available.")
+    def load_from_materials_project(*args, **kwargs):
+        raise ImportError("Materials Project API not available.")
 
 # Exception imports  
 from .utils.exceptions import (
@@ -83,6 +101,32 @@ def load_structure(filepath_or_content, format=None):
     parser = get_parser(format)
     return parser.parse(filepath_or_content)
 
+# FIXED: Create validate_structure function using StructureValidator
+def validate_structure(structure, validation_level="medium"):
+    """
+    Validate crystal structure using StructureValidator.
+    
+    Args:
+        structure: Crystal structure to validate
+        validation_level: Currently not implemented, kept for compatibility
+        
+    Returns:
+        Tuple[bool, List[str]]: (is_valid, list_of_issues)
+        
+    Examples:
+        >>> is_valid, issues = crysio.validate_structure(structure)
+    """
+    validator = StructureValidator()
+    result = validator.validate(structure)
+    
+    # Convert ValidationResult to tuple format
+    issues = []
+    if hasattr(result, 'errors'):
+        issues.extend(result.errors)
+    if hasattr(result, 'warnings'):
+        issues.extend(result.warnings)
+    
+    return result.is_valid, issues
 
 def clean_structure(structure, validation_level="medium"):
     """
@@ -90,26 +134,22 @@ def clean_structure(structure, validation_level="medium"):
     
     Args:
         structure: Crystal structure to clean
-        validation_level: Validation strictness ("basic", "medium", "strict")
+        validation_level: Validation strictness (placeholder)
         
     Returns:
-        Crystal: Cleaned crystal structure
+        Crystal: Input structure (cleaning not implemented yet)
         
     Examples:
         >>> clean_struct = crysio.clean_structure(structure)
     """
-    validator = CrystalValidator(validation_level=ValidationLevel.from_string(validation_level))
-    
-    # Validate structure
-    is_valid, issues = validator.validate_crystal(structure)
+    # For now, just validate and return original structure
+    # Cleaning functionality to be implemented
+    is_valid, issues = validate_structure(structure, validation_level)
     
     if not is_valid:
-        # Apply fixes for common issues
-        # This would be expanded in future versions
-        pass
+        print("Validation issues found:", issues)
     
     return structure
-
 
 def batch_process(structures_or_paths, format=None, validation_level="medium", 
                  progress=True, n_workers=1):
@@ -129,13 +169,13 @@ def batch_process(structures_or_paths, format=None, validation_level="medium",
     Examples:
         >>> structures = crysio.batch_process(["file1.cif", "file2.cif"])
     """
-    from tqdm import tqdm
+    try:
+        from tqdm import tqdm
+        iterator = tqdm(structures_or_paths, desc="Processing structures") if progress else structures_or_paths
+    except ImportError:
+        iterator = structures_or_paths
     
     processed = []
-    iterator = structures_or_paths
-    
-    if progress:
-        iterator = tqdm(structures_or_paths, desc="Processing structures")
     
     for item in iterator:
         try:
@@ -148,13 +188,11 @@ def batch_process(structures_or_paths, format=None, validation_level="medium",
             processed.append(clean_struct)
             
         except Exception as e:
-            if progress:
+            if progress and hasattr(iterator, 'set_postfix'):
                 iterator.set_postfix({"error": str(e)[:30]})
-            # Could add error handling options here
             continue
     
     return processed
-
 
 # Convenience aliases
 load = load_structure
@@ -180,16 +218,20 @@ __all__ = [
     'auto_detect_format',
     'get_parser',
     
-    # Validators
-    'CrystalValidator',
+    # Validators (FIXED)
+    'StructureValidator',
+    'ValidationResult',
+    'BaseValidator',
+    'LatticeValidator',
+    'AtomicPositionValidator',
+    'CompositionValidator',
     'validate_structure',
-    'ValidationLevel',
     
-    # Converters
+    # Converters (optional)
     'GraphBuilder',
     'to_graph',
     
-    # API
+    # API (optional)
     'MaterialsProjectAPI',
     'search_materials_database',
     'load_from_materials_project',
@@ -205,6 +247,7 @@ __all__ = [
     'load_structure',
     'clean_structure',
     'batch_process',
+    'validate_structure',
     'load',
     'parse',
 ]

@@ -99,6 +99,7 @@ crysio/ v0.2.0
 │   └── data/
 │       ├── __init__.py         ❌ TODO
 │       └── sample_structures/  ❌ TODO
+│       └── atomic_properties/  ❌ TODO
 ├── examples/                   ❌ TODO (all notebooks)
 ├── tests/                      ❌ TODO (all test files)
 └── docs/                       ❌ TODO (all documentation)
