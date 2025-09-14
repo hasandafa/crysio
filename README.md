@@ -121,21 +121,91 @@ crysio.visualize.data_quality_dashboard(dataset)
 
 ## 🛠️ Development Roadmap
 
-### Phase 1 ✅ (Current)
+### Phase 1 ✅ (Completed)
 - [x] Project structure setup
-- [x] Core infrastructure
-- [x] Basic file parsers
+- [x] Core infrastructure  
+- [x] Basic file parsers (CIF, POSCAR)
+- [x] Crystal structure representation
+- [x] Exception handling framework
 
-### Phase 2 🔄 (In Progress)
-- [ ] Graph conversion algorithms
-- [ ] PyTorch Geometric integration
-- [ ] Validation framework
+### Phase 2 ✅ (Completed)
+- [x] Graph conversion algorithms
+- [x] PyTorch Geometric integration
+- [x] Structure validation framework
+- [x] Coordination environment analysis
+- [x] Periodic boundary condition handling
 
-### Phase 3 📋 (Planned)
+### Phase 3 🔄 (In Progress)
 - [ ] Interactive visualization dashboard
 - [ ] Materials Project API integration
+- [ ] Advanced property calculations
 - [ ] Performance optimization
-- [ ] Documentation & tutorials
+- [ ] Unit testing framework
+
+### Phase 4 📋 (Planned)
+- [ ] Command-line interface (CLI)
+- [ ] Multiple database integrations (COD, ICSD)
+- [ ] Pre-trained ML models
+- [ ] Publication-ready example workflows
+- [ ] Community features and documentation
+
+## 📋 Changelog
+
+### Version 0.2.0 (Current)
+
+**Major Features Added:**
+- **Graph Neural Network Integration**: Complete PyTorch Geometric conversion with configurable node and edge features
+- **Structure Validation Framework**: Comprehensive validation for lattice parameters, atomic positions, and composition
+- **Materials Project API Integration**: Direct access to 150,000+ crystal structures and properties
+- **Batch Processing Pipeline**: Efficient processing of multiple structures with progress tracking
+- **Coordination Environment Analysis**: Automatic calculation of coordination numbers and bond statistics
+
+**New Modules:**
+- `crysio.converters.graph_builder`: Crystal-to-graph conversion with periodic boundary handling
+- `crysio.core.validators`: Multi-layer structure validation system
+- `crysio.api.materials_project`: Full API integration with rate limiting and error recovery
+
+**API Enhancements:**
+- `crysio.to_graph()`: Convert crystal structures to PyTorch Geometric graphs
+- `crysio.validate_structure()`: Validate crystal structure integrity
+- `crysio.load_from_materials_project()`: Load structures directly from Materials Project
+- `crysio.search_materials_database()`: Search Materials Project by formula or criteria
+
+**Technical Improvements:**
+- Robust error handling with specialized exception types
+- Periodic boundary condition support for graph construction
+- Automatic atomic property database (electronegativity, atomic radius)
+- Rate limiting and retry logic for API requests
+- Enhanced batch processing with progress indicators
+
+### Version 0.1.0 (Initial Release)
+
+**Core Features:**
+- Basic crystal structure representation (`Crystal`, `LatticeParameters`, `AtomicSite`)
+- File format parsers for CIF and POSCAR formats
+- Auto-detection of file formats
+- Basic exception handling framework
+- Simple crystal property calculations (volume, density, composition)
+
+**Modules:**
+- `crysio.core.crystal`: Core crystal structure classes
+- `crysio.core.parsers`: CIF and POSCAR file parsers
+- `crysio.utils.exceptions`: Basic exception handling
+
+**API:**
+- `crysio.load_structure()`: Load crystal structures from files
+- Basic crystal analysis methods (supercell generation, coordinate conversion)
+
+### Breaking Changes from 0.1.0 to 0.2.0
+- None. Version 0.2.0 is fully backward compatible with 0.1.0
+- All existing code continues to work without modification
+- New functionality is additive only
+
+### Dependencies Added in 0.2.0
+- **torch**: Required for graph conversion functionality
+- **torch-geometric**: PyTorch Geometric for GNN integration
+- **requests**: HTTP client for Materials Project API
+- **tqdm**: Progress bars for batch processing
 
 ## 🤝 Contributing
 

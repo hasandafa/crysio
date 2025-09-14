@@ -65,34 +65,34 @@ crysio/
 ### 5. .gitignore for Python projects
 ### 6. requirements.txt
 
-crysio/
-├── README.md                    ✅ DONE
+crysio/ v0.2.0
+├── README.md                    ✅ UPDATED (v0.2.0 changelog, new features)
 ├── LICENSE                      ❌ TODO
-├── pyproject.toml              ✅ DONE  
-├── requirements.txt            ✅ DONE
+├── pyproject.toml              ✅ UPDATED (v0.2.0, mp-api dependency)
+├── requirements.txt            ✅ UPDATED (with mp-api>=0.33.0)
 ├── .gitignore                  ✅ DONE
 ├── setup.py                    ✅ DONE
 ├── crysio/
-│   ├── __init__.py             ✅ UPDATED (with working parsers, placeholder others)
+│   ├── __init__.py             ✅ UPDATED (v0.2.0 complete API)
 │   ├── core/
-│   │   ├── __init__.py         ✅ DONE
+│   │   ├── __init__.py         ✅ UPDATED (includes validators)
 │   │   ├── crystal.py          ✅ DONE (complete Crystal class)
 │   │   ├── parsers.py          ✅ DONE (CIF + POSCAR parsers)
 │   │   ├── cleaners.py         ❌ TODO
-│   │   └── validators.py       ❌ TODO
+│   │   └── validators.py       ✅ DONE (comprehensive validation framework)
 │   ├── converters/
-│   │   ├── __init__.py         ❌ TODO
-│   │   ├── graph_builder.py    ❌ TODO
+│   │   ├── __init__.py         ✅ DONE
+│   │   ├── graph_builder.py    ✅ DONE (PyTorch Geometric integration)
 │   │   └── format_converter.py ❌ TODO
 │   ├── visualizers/
 │   │   ├── __init__.py         ❌ TODO
 │   │   ├── crystal_viz.py      ❌ TODO
 │   │   └── analysis_plots.py   ❌ TODO
 │   ├── api/
-│   │   ├── __init__.py         ❌ TODO
-│   │   └── materials_project.py ❌ TODO
-│   ├── utils/
 │   │   ├── __init__.py         ✅ DONE
+│   │   └── materials_project.py ✅ DONE (modern mp-api integration)
+│   ├── utils/
+│   │   ├── __init__.py         ✅ UPDATED (expanded exceptions)
 │   │   ├── config.py           ❌ TODO
 │   │   ├── helpers.py          ❌ TODO
 │   │   └── exceptions.py       ✅ DONE (complete exception hierarchy)

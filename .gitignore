@@ -1,4 +1,4 @@
-[200~# Byte-compiled / optimized / DLL files
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -103,7 +103,6 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-crysio-env/
 
 # Spyder project settings
 .spyderproject
@@ -123,50 +122,20 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Materials science specific files
+# Materials science specific
 *.cif
 *.POSCAR
 *.CONTCAR
 *.vasp
 *.xyz
-*.xsd
-*.pdb
 materials_project_api_key.txt
-mp_api_key.txt
 
 # Large data files
 *.h5
 *.hdf5
 *.pkl
 *.pickle
-*.npz
-*.npy
-
-# Visualization outputs
-*.png
-*.jpg
-*.jpeg
-*.svg
-*.pdf
-*.html
 
 # OS specific
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
-
-# IDE specific
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Temporary files
-tmp/
-temp/
-.tmp/~

@@ -3,7 +3,7 @@ Crysio: Crystal I/O toolkit for preprocessing and visualizing
 crystal structures for machine learning applications.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Dafa, Abdullah Hasan"
 __email__ = "dafa.abdullahhasan@gmail.com"
 
