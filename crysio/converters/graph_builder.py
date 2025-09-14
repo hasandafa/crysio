@@ -1,14 +1,18 @@
 """
-Graph builder module for converting crystal structures to PyTorch Geometric graphs.
+Graph conversion module for crystal structures.
 
-This module provides functionality to convert crystal structures into graph representations
-suitable for Graph Neural Networks, particularly using PyTorch Geometric.
+This module converts crystal structures to PyTorch Geometric graphs for use in
+Graph Neural Networks (GNNs) and other graph-based machine learning applications.
 """
 
 import numpy as np
-from typing import Dict, List, Optional, Union, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Union, Any
 from dataclasses import dataclass
 
+from ..core.crystal import Crystal
+from ..utils.exceptions import ConversionError
+
+# Check for PyTorch and PyTorch Geometric availability
 try:
     import torch
     import torch_geometric
@@ -16,440 +20,248 @@ try:
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
-    # Create dummy classes for type hints when PyTorch is not available
+    # Create dummy classes for type hints
     class Data:
         pass
+    torch = None
+    torch_geometric = None
 
-from ..core.crystal import Crystal
-from ..utils.exceptions import GraphBuildingError, ConversionError
+
+class GraphBuildingError(ConversionError):
+    """Exception raised during graph building process."""
+    pass
 
 
 @dataclass
 class GraphConfig:
-    """Configuration for graph building parameters."""
+    """Configuration for graph building."""
+    cutoff_radius: float = 5.0  # Angstrom
+    max_neighbors: int = 12
+    include_edge_features: bool = True
+    include_node_features: bool = True
+    periodic_boundary: bool = True
     
-    # Edge construction parameters
-    cutoff_radius: float = 5.0  # Maximum distance for edge creation (Å)
-    max_neighbors: Optional[int] = 12  # Maximum number of neighbors per node
-    self_loops: bool = False  # Include self-connections
-    
-    # Node feature parameters
-    use_atomic_number: bool = True
-    use_electronegativity: bool = True
-    use_atomic_radius: bool = True
-    use_coordination_number: bool = True
-    use_oxidation_state: bool = False
-    
-    # Edge feature parameters
-    use_distance: bool = True
-    use_bond_angles: bool = False
-    use_relative_positions: bool = True
-    
-    # Graph construction options
-    periodic_boundary: bool = True  # Consider periodic boundary conditions
-    supercell_expansion: Tuple[int, int, int] = (1, 1, 1)  # Expand unit cell for better connectivity
-
 
 class GraphBuilder:
     """
     Convert crystal structures to PyTorch Geometric graphs.
     
-    This class handles the conversion of crystal structures into graph representations
-    suitable for Graph Neural Networks. It supports various node and edge features
-    and handles periodic boundary conditions.
+    This class provides functionality to convert Crystal objects into graph
+    representations suitable for Graph Neural Networks.
     
-    Attributes:
-        config (GraphConfig): Configuration for graph building
-        atomic_properties (Dict): Database of atomic properties
-        
     Examples:
         >>> builder = GraphBuilder()
-        >>> graph = builder.build_graph(crystal_structure)
-        >>> print(f"Graph: {graph.num_nodes} nodes, {graph.num_edges} edges")
-        
-        >>> # Custom configuration
-        >>> config = GraphConfig(cutoff_radius=6.0, use_bond_angles=True)
-        >>> builder = GraphBuilder(config)
-        >>> graph = builder.build_graph(crystal_structure)
+        >>> graph = builder.build(crystal_structure)
+        >>> print(f"Nodes: {graph.num_nodes}, Edges: {graph.num_edges}")
     """
     
     def __init__(self, config: Optional[GraphConfig] = None):
         """
-        Initialize GraphBuilder with configuration.
+        Initialize GraphBuilder.
         
         Args:
-            config: GraphConfig object with building parameters
-            
-        Raises:
-            ImportError: If PyTorch Geometric is not available
+            config: Configuration for graph building parameters
         """
         if not TORCH_AVAILABLE:
             raise ImportError(
-                "PyTorch and PyTorch Geometric are required for graph building. "
+                "PyTorch and PyTorch Geometric are required for graph conversion. "
                 "Install with: pip install torch torch-geometric"
             )
         
         self.config = config or GraphConfig()
-        self.atomic_properties = self._load_atomic_properties()
-    
-    def build_graph(self, crystal: Crystal, **kwargs) -> Data:
+        
+    def build(self, crystal: Crystal, **kwargs) -> Data:
         """
         Convert crystal structure to PyTorch Geometric graph.
         
         Args:
             crystal: Crystal structure to convert
-            **kwargs: Override configuration parameters
+            **kwargs: Override config parameters
             
         Returns:
-            Data: PyTorch Geometric data object
+            torch_geometric.data.Data: Graph representation
             
         Raises:
-            GraphBuildingError: If graph construction fails
+            GraphBuildingError: If graph building fails
         """
         try:
-            # Update config with any kwargs
-            config = self._update_config(**kwargs)
+            # Override config with kwargs
+            config = GraphConfig(
+                cutoff_radius=kwargs.get('cutoff_radius', self.config.cutoff_radius),
+                max_neighbors=kwargs.get('max_neighbors', self.config.max_neighbors),
+                include_edge_features=kwargs.get('include_edge_features', self.config.include_edge_features),
+                include_node_features=kwargs.get('include_node_features', self.config.include_node_features),
+                periodic_boundary=kwargs.get('periodic_boundary', self.config.periodic_boundary)
+            )
             
-            # Expand supercell if needed
-            if config.supercell_expansion != (1, 1, 1):
-                crystal = crystal.supercell(*config.supercell_expansion)
+            # Extract atomic positions and elements
+            positions, elements = self._extract_structure_info(crystal)
             
-            # Get atomic positions and types
-            positions = self._get_atomic_positions(crystal)
-            node_features = self._build_node_features(crystal, config)
+            # Build node features
+            node_features = self._build_node_features(elements) if config.include_node_features else None
             
-            # Build edges and edge features
-            edge_index, edge_attr = self._build_edges(crystal, positions, config)
+            # Build edges with periodic boundary conditions
+            edge_indices, edge_features = self._build_edges(
+                crystal, positions, config
+            )
             
-            # Create PyTorch Geometric data object
+            # Create PyTorch Geometric Data object
             graph_data = Data(
                 x=node_features,
-                edge_index=edge_index,
-                edge_attr=edge_attr,
-                pos=positions,
-                # Additional metadata
-                formula=crystal.formula,
-                space_group=crystal.space_group,
-                lattice_params=torch.tensor([
-                    crystal.lattice.a, crystal.lattice.b, crystal.lattice.c,
-                    crystal.lattice.alpha, crystal.lattice.beta, crystal.lattice.gamma
-                ], dtype=torch.float32),
-                volume=torch.tensor([crystal.volume], dtype=torch.float32),
-                num_atoms=torch.tensor([crystal.num_atoms], dtype=torch.long)
+                edge_index=edge_indices,
+                edge_attr=edge_features if config.include_edge_features else None,
+                pos=torch.tensor(positions, dtype=torch.float32)
             )
+            
+            # Add metadata
+            graph_data.formula = crystal.formula
+            graph_data.num_atoms = crystal.num_atoms
+            graph_data.lattice_params = self._get_lattice_params(crystal)
             
             return graph_data
             
         except Exception as e:
-            raise GraphBuildingError(f"Failed to build graph: {str(e)}", crystal.formula)
+            raise GraphBuildingError(f"Failed to build graph: {str(e)}")
     
-    def _get_atomic_positions(self, crystal: Crystal) -> torch.Tensor:
-        """Get atomic positions as tensor."""
-        cartesian_coords = crystal.to_cartesian_coordinates()
-        positions = torch.tensor(cartesian_coords, dtype=torch.float32)
-        return positions
-    
-    def _build_node_features(self, crystal: Crystal, config: GraphConfig) -> torch.Tensor:
-        """
-        Build node features for each atom.
+    def _extract_structure_info(self, crystal: Crystal) -> Tuple[np.ndarray, List[str]]:
+        """Extract positions and elements from crystal."""
+        positions = []
+        elements = []
         
-        Args:
-            crystal: Crystal structure
-            config: Graph configuration
-            
-        Returns:
-            torch.Tensor: Node features [num_nodes, num_features]
-        """
-        features = []
+        # Convert lattice parameters to matrix
+        lattice_matrix = np.array(crystal.lattice.lattice_matrix())
         
         for site in crystal.sites:
-            atom_features = []
-            element = site.element
-            
-            # Atomic number (essential for most applications)
-            if config.use_atomic_number:
-                atomic_num = self.atomic_properties.get(element, {}).get('atomic_number', 0)
-                atom_features.append(atomic_num)
-            
-            # Electronegativity
-            if config.use_electronegativity:
-                electronegativity = self.atomic_properties.get(element, {}).get('electronegativity', 0.0)
-                atom_features.append(electronegativity)
-            
-            # Atomic radius
-            if config.use_atomic_radius:
-                atomic_radius = self.atomic_properties.get(element, {}).get('atomic_radius', 0.0)
-                atom_features.append(atomic_radius)
-            
-            # Coordination number (calculated)
-            if config.use_coordination_number:
-                coord_num = self._calculate_coordination_number(crystal, site, config.cutoff_radius)
-                atom_features.append(coord_num)
-            
-            # Oxidation state (if available)
-            if config.use_oxidation_state and site.oxidation_state is not None:
-                atom_features.append(site.oxidation_state)
-            elif config.use_oxidation_state:
-                atom_features.append(0.0)  # Default value
-            
-            features.append(atom_features)
+            # Convert fractional coordinates to Cartesian
+            cartesian_pos = lattice_matrix @ site.position
+            positions.append(cartesian_pos)
+            elements.append(site.element)
         
-        return torch.tensor(features, dtype=torch.float32)
+        return np.array(positions), elements
     
-    def _build_edges(self, crystal: Crystal, positions: torch.Tensor, config: GraphConfig) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Build edge indices and edge features.
+    def _build_node_features(self, elements: List[str]) -> torch.Tensor:
+        """Build node features based on atomic properties."""
+        # Simple atomic number encoding
+        atomic_numbers = []
+        for element in elements:
+            atomic_num = self._get_atomic_number(element)
+            atomic_numbers.append(atomic_num)
         
-        Args:
-            crystal: Crystal structure
-            positions: Atomic positions
-            config: Graph configuration
-            
-        Returns:
-            Tuple of (edge_index, edge_attr)
-        """
+        # Convert to one-hot encoding (simplified - could be more sophisticated)
+        max_atomic_num = max(atomic_numbers)
+        node_features = torch.zeros(len(elements), max_atomic_num)
+        
+        for i, atomic_num in enumerate(atomic_numbers):
+            if atomic_num > 0:
+                node_features[i, atomic_num - 1] = 1.0
+        
+        return node_features
+    
+    def _build_edges(self, crystal: Crystal, positions: np.ndarray, 
+                    config: GraphConfig) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        """Build edge indices and features."""
+        from scipy.spatial.distance import cdist
+        
         edge_indices = []
         edge_features = []
         
-        num_atoms = len(crystal.sites)
+        # Calculate distances
+        distances = cdist(positions, positions)
         
-        # Calculate distance matrix
+        # Handle periodic boundary conditions if enabled
         if config.periodic_boundary:
-            distances, edge_pairs = self._calculate_periodic_distances(crystal, positions, config.cutoff_radius)
-        else:
-            distances, edge_pairs = self._calculate_distances(positions, config.cutoff_radius)
+            positions_extended = self._extend_with_periodic_images(
+                crystal, positions, config.cutoff_radius
+            )
+            distances_extended = cdist(positions, positions_extended)
+            distances = np.minimum(distances, distances_extended[:, :len(positions)])
         
-        # Build edges within cutoff radius
-        for (i, j), distance in zip(edge_pairs, distances):
-            if i == j and not config.self_loops:
-                continue
+        # Build edges based on cutoff radius
+        for i in range(len(positions)):
+            # Find neighbors within cutoff
+            neighbors = np.where(
+                (distances[i] < config.cutoff_radius) & 
+                (distances[i] > 0.1)  # Exclude self
+            )[0]
             
-            edge_indices.append([i, j])
+            # Limit to max_neighbors
+            if len(neighbors) > config.max_neighbors:
+                neighbor_distances = distances[i][neighbors]
+                sorted_indices = np.argsort(neighbor_distances)
+                neighbors = neighbors[sorted_indices[:config.max_neighbors]]
             
-            # Edge features
-            edge_feat = []
-            
-            if config.use_distance:
-                edge_feat.append(distance)
-            
-            if config.use_relative_positions:
-                relative_pos = positions[j] - positions[i]
-                edge_feat.extend(relative_pos.tolist())
-            
-            edge_features.append(edge_feat)
-        
-        # Limit number of neighbors if specified
-        if config.max_neighbors is not None:
-            edge_indices, edge_features = self._limit_neighbors(edge_indices, edge_features, config.max_neighbors)
-        
-        # Convert to tensors
-        if edge_indices:
-            edge_index = torch.tensor(edge_indices, dtype=torch.long).t().contiguous()
-            edge_attr = torch.tensor(edge_features, dtype=torch.float32)
-        else:
-            edge_index = torch.empty((2, 0), dtype=torch.long)
-            edge_attr = torch.empty((0, len(edge_features[0]) if edge_features else 1), dtype=torch.float32)
-        
-        return edge_index, edge_attr
-    
-    def _calculate_periodic_distances(self, crystal: Crystal, positions: torch.Tensor, cutoff: float) -> Tuple[List[float], List[Tuple[int, int]]]:
-        """
-        Calculate distances considering periodic boundary conditions.
-        
-        Args:
-            crystal: Crystal structure
-            positions: Atomic positions
-            cutoff: Distance cutoff
-            
-        Returns:
-            Tuple of (distances, edge_pairs)
-        """
-        distances = []
-        edge_pairs = []
-        
-        lattice_matrix = torch.tensor(crystal.lattice.lattice_matrix(), dtype=torch.float32)
-        num_atoms = positions.shape[0]
-        
-        # Generate neighboring unit cells to check
-        cell_offsets = []
-        for i in range(-1, 2):
-            for j in range(-1, 2):
-                for k in range(-1, 2):
-                    cell_offsets.append([i, j, k])
-        
-        for atom_i in range(num_atoms):
-            for atom_j in range(num_atoms):
-                min_distance = float('inf')
+            # Add edges
+            for j in neighbors:
+                edge_indices.append([i, j])
                 
-                # Check all periodic images
-                for offset in cell_offsets:
-                    offset_vector = torch.tensor(offset, dtype=torch.float32) @ lattice_matrix
-                    translated_pos = positions[atom_j] + offset_vector
-                    distance = torch.norm(positions[atom_i] - translated_pos).item()
+                if config.include_edge_features:
+                    # Distance as edge feature
+                    distance = distances[i, j]
+                    edge_features.append([distance])
+        
+        edge_indices = torch.tensor(edge_indices, dtype=torch.long).t().contiguous()
+        edge_features = torch.tensor(edge_features, dtype=torch.float32) if edge_features else None
+        
+        return edge_indices, edge_features
+    
+    def _extend_with_periodic_images(self, crystal: Crystal, positions: np.ndarray, 
+                                   cutoff: float) -> np.ndarray:
+        """Generate periodic images for boundary conditions."""
+        lattice_matrix = np.array(crystal.lattice.lattice_matrix())
+        
+        # Simple approach: extend by one unit cell in each direction
+        extended_positions = []
+        
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                for dz in [-1, 0, 1]:
+                    if dx == 0 and dy == 0 and dz == 0:
+                        continue  # Skip original unit cell
                     
-                    if distance < min_distance:
-                        min_distance = distance
-                
-                if min_distance <= cutoff:
-                    distances.append(min_distance)
-                    edge_pairs.append((atom_i, atom_j))
+                    translation = dx * lattice_matrix[0] + dy * lattice_matrix[1] + dz * lattice_matrix[2]
+                    translated_positions = positions + translation
+                    extended_positions.extend(translated_positions)
         
-        return distances, edge_pairs
+        return np.vstack([positions, np.array(extended_positions)])
     
-    def _calculate_distances(self, positions: torch.Tensor, cutoff: float) -> Tuple[List[float], List[Tuple[int, int]]]:
-        """
-        Calculate distances without periodic boundary conditions.
-        
-        Args:
-            positions: Atomic positions
-            cutoff: Distance cutoff
-            
-        Returns:
-            Tuple of (distances, edge_pairs)
-        """
-        distances = []
-        edge_pairs = []
-        
-        num_atoms = positions.shape[0]
-        
-        for i in range(num_atoms):
-            for j in range(num_atoms):
-                distance = torch.norm(positions[i] - positions[j]).item()
-                
-                if distance <= cutoff:
-                    distances.append(distance)
-                    edge_pairs.append((i, j))
-        
-        return distances, edge_pairs
-    
-    def _calculate_coordination_number(self, crystal: Crystal, site, cutoff: float) -> float:
-        """Calculate coordination number for an atomic site."""
-        site_index = crystal.sites.index(site)
-        positions = self._get_atomic_positions(crystal)
-        
-        distances, edge_pairs = self._calculate_periodic_distances(crystal, positions, cutoff)
-        
-        coord_num = 0
-        for (i, j), distance in zip(edge_pairs, distances):
-            if i == site_index and j != site_index:
-                coord_num += 1
-        
-        return float(coord_num)
-    
-    def _limit_neighbors(self, edge_indices: List, edge_features: List, max_neighbors: int) -> Tuple[List, List]:
-        """Limit number of neighbors per node."""
-        # Group edges by source node
-        node_edges = {}
-        for idx, (i, j) in enumerate(edge_indices):
-            if i not in node_edges:
-                node_edges[i] = []
-            node_edges[i].append((idx, j))
-        
-        # Keep only closest neighbors
-        limited_edge_indices = []
-        limited_edge_features = []
-        
-        for node, edges in node_edges.items():
-            # Sort by distance (assuming distance is first edge feature)
-            edges.sort(key=lambda x: edge_features[x[0]][0] if edge_features[x[0]] else 0)
-            
-            # Keep top max_neighbors
-            for idx, (edge_idx, target) in enumerate(edges[:max_neighbors]):
-                limited_edge_indices.append([node, target])
-                limited_edge_features.append(edge_features[edge_idx])
-        
-        return limited_edge_indices, limited_edge_features
-    
-    def _update_config(self, **kwargs) -> GraphConfig:
-        """Update configuration with keyword arguments."""
-        config_dict = {
-            'cutoff_radius': kwargs.get('cutoff_radius', self.config.cutoff_radius),
-            'max_neighbors': kwargs.get('max_neighbors', self.config.max_neighbors),
-            'self_loops': kwargs.get('self_loops', self.config.self_loops),
-            'use_atomic_number': kwargs.get('use_atomic_number', self.config.use_atomic_number),
-            'use_electronegativity': kwargs.get('use_electronegativity', self.config.use_electronegativity),
-            'use_atomic_radius': kwargs.get('use_atomic_radius', self.config.use_atomic_radius),
-            'use_coordination_number': kwargs.get('use_coordination_number', self.config.use_coordination_number),
-            'use_oxidation_state': kwargs.get('use_oxidation_state', self.config.use_oxidation_state),
-            'use_distance': kwargs.get('use_distance', self.config.use_distance),
-            'use_bond_angles': kwargs.get('use_bond_angles', self.config.use_bond_angles),
-            'use_relative_positions': kwargs.get('use_relative_positions', self.config.use_relative_positions),
-            'periodic_boundary': kwargs.get('periodic_boundary', self.config.periodic_boundary),
-            'supercell_expansion': kwargs.get('supercell_expansion', self.config.supercell_expansion),
+    def _get_atomic_number(self, element: str) -> int:
+        """Get atomic number for element."""
+        # Simple mapping - could be more comprehensive
+        atomic_numbers = {
+            'H': 1, 'He': 2, 'Li': 3, 'Be': 4, 'B': 5, 'C': 6, 'N': 7, 'O': 8,
+            'F': 9, 'Ne': 10, 'Na': 11, 'Mg': 12, 'Al': 13, 'Si': 14, 'P': 15,
+            'S': 16, 'Cl': 17, 'Ar': 18, 'K': 19, 'Ca': 20, 'Fe': 26, 'Co': 27,
+            'Ni': 28, 'Cu': 29, 'Zn': 30, 'Ga': 31, 'Ge': 32, 'As': 33, 'Se': 34
         }
-        return GraphConfig(**config_dict)
+        return atomic_numbers.get(element, 0)
     
-    def _load_atomic_properties(self) -> Dict[str, Dict[str, float]]:
-        """Load atomic properties database."""
-        # Basic atomic properties for common elements
-        properties = {
-            'H': {'atomic_number': 1, 'electronegativity': 2.20, 'atomic_radius': 0.37},
-            'He': {'atomic_number': 2, 'electronegativity': 0.00, 'atomic_radius': 0.32},
-            'Li': {'atomic_number': 3, 'electronegativity': 0.98, 'atomic_radius': 1.34},
-            'Be': {'atomic_number': 4, 'electronegativity': 1.57, 'atomic_radius': 0.90},
-            'B': {'atomic_number': 5, 'electronegativity': 2.04, 'atomic_radius': 0.82},
-            'C': {'atomic_number': 6, 'electronegativity': 2.55, 'atomic_radius': 0.77},
-            'N': {'atomic_number': 7, 'electronegativity': 3.04, 'atomic_radius': 0.75},
-            'O': {'atomic_number': 8, 'electronegativity': 3.44, 'atomic_radius': 0.73},
-            'F': {'atomic_number': 9, 'electronegativity': 3.98, 'atomic_radius': 0.71},
-            'Ne': {'atomic_number': 10, 'electronegativity': 0.00, 'atomic_radius': 0.69},
-            'Na': {'atomic_number': 11, 'electronegativity': 0.93, 'atomic_radius': 1.54},
-            'Mg': {'atomic_number': 12, 'electronegativity': 1.31, 'atomic_radius': 1.30},
-            'Al': {'atomic_number': 13, 'electronegativity': 1.61, 'atomic_radius': 1.18},
-            'Si': {'atomic_number': 14, 'electronegativity': 1.90, 'atomic_radius': 1.11},
-            'P': {'atomic_number': 15, 'electronegativity': 2.19, 'atomic_radius': 1.06},
-            'S': {'atomic_number': 16, 'electronegativity': 2.58, 'atomic_radius': 1.02},
-            'Cl': {'atomic_number': 17, 'electronegativity': 3.16, 'atomic_radius': 0.99},
-            'Ar': {'atomic_number': 18, 'electronegativity': 0.00, 'atomic_radius': 0.97},
-            'K': {'atomic_number': 19, 'electronegativity': 0.82, 'atomic_radius': 1.96},
-            'Ca': {'atomic_number': 20, 'electronegativity': 1.00, 'atomic_radius': 1.74},
-            'Sc': {'atomic_number': 21, 'electronegativity': 1.36, 'atomic_radius': 1.44},
-            'Ti': {'atomic_number': 22, 'electronegativity': 1.54, 'atomic_radius': 1.36},
-            'V': {'atomic_number': 23, 'electronegativity': 1.63, 'atomic_radius': 1.25},
-            'Cr': {'atomic_number': 24, 'electronegativity': 1.66, 'atomic_radius': 1.27},
-            'Mn': {'atomic_number': 25, 'electronegativity': 1.55, 'atomic_radius': 1.39},
-            'Fe': {'atomic_number': 26, 'electronegativity': 1.83, 'atomic_radius': 1.25},
-            'Co': {'atomic_number': 27, 'electronegativity': 1.88, 'atomic_radius': 1.26},
-            'Ni': {'atomic_number': 28, 'electronegativity': 1.91, 'atomic_radius': 1.21},
-            'Cu': {'atomic_number': 29, 'electronegativity': 1.90, 'atomic_radius': 1.38},
-            'Zn': {'atomic_number': 30, 'electronegativity': 1.65, 'atomic_radius': 1.31},
-            'Ga': {'atomic_number': 31, 'electronegativity': 1.81, 'atomic_radius': 1.26},
-            'Ge': {'atomic_number': 32, 'electronegativity': 2.01, 'atomic_radius': 1.22},
-            'As': {'atomic_number': 33, 'electronegativity': 2.18, 'atomic_radius': 1.19},
-            'Se': {'atomic_number': 34, 'electronegativity': 2.55, 'atomic_radius': 1.16},
-            'Br': {'atomic_number': 35, 'electronegativity': 2.96, 'atomic_radius': 1.14},
-            'Kr': {'atomic_number': 36, 'electronegativity': 0.00, 'atomic_radius': 1.10},
+    def _get_lattice_params(self, crystal: Crystal) -> Dict[str, float]:
+        """Extract lattice parameters as metadata."""
+        return {
+            'a': crystal.lattice.a,
+            'b': crystal.lattice.b,
+            'c': crystal.lattice.c,
+            'alpha': crystal.lattice.alpha,
+            'beta': crystal.lattice.beta,
+            'gamma': crystal.lattice.gamma,
+            'volume': crystal.volume
         }
-        
-        return properties
+
+
+def to_graph(crystal: Crystal, **kwargs) -> Data:
+    """
+    Convenience function to convert crystal to graph.
     
-    def get_graph_statistics(self, graph_data: Data) -> Dict[str, Any]:
-        """
-        Get statistics about the generated graph.
+    Args:
+        crystal: Crystal structure to convert
+        **kwargs: Configuration parameters for GraphBuilder
         
-        Args:
-            graph_data: PyTorch Geometric data object
-            
-        Returns:
-            Dict with graph statistics
-        """
-        stats = {
-            'num_nodes': graph_data.num_nodes,
-            'num_edges': graph_data.num_edges,
-            'num_node_features': graph_data.num_node_features,
-            'num_edge_features': graph_data.num_edge_features if graph_data.edge_attr is not None else 0,
-            'average_degree': graph_data.num_edges / graph_data.num_nodes if graph_data.num_nodes > 0 else 0,
-            'formula': graph_data.formula if hasattr(graph_data, 'formula') else 'Unknown',
-            'space_group': graph_data.space_group if hasattr(graph_data, 'space_group') else 'Unknown',
-        }
+    Returns:
+        torch_geometric.data.Data: Graph representation
         
-        if hasattr(graph_data, 'edge_attr') and graph_data.edge_attr is not None:
-            # Distance statistics (assuming first edge feature is distance)
-            distances = graph_data.edge_attr[:, 0]
-            stats.update({
-                'min_distance': float(torch.min(distances)),
-                'max_distance': float(torch.max(distances)),
-                'mean_distance': float(torch.mean(distances)),
-            })
-        
-        return stats
+    Examples:
+        >>> graph = to_graph(crystal, cutoff_radius=4.0, max_neighbors=8)
+        >>> print(f"Converted crystal with {graph.num_nodes} nodes")
+    """
+    builder = GraphBuilder()
+    return builder.build(crystal, **kwargs)

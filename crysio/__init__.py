@@ -33,7 +33,7 @@ from .core.parsers import (
     get_parser
 )
 
-# FIXED: Import what actually exists in validators.py
+# Import what actually exists in validators.py
 from .core.validators import (
     StructureValidator,
     ValidationResult,
@@ -43,19 +43,34 @@ from .core.validators import (
     CompositionValidator
 )
 
-# Converter imports - only import if modules exist
+# FIXED: Converter imports with proper error handling
 try:
-    from .converters.graph_builder import (
+    from .converters import (
         GraphBuilder,
+        GraphConfig,
         to_graph
     )
-except ImportError:
+    
+    # Ensure to_graph is available at top level
+    def convert_to_graph(crystal_structure, **kwargs):
+        """Alias for to_graph function."""
+        return to_graph(crystal_structure, **kwargs)
+        
+except ImportError as e:
     # GraphBuilder not available, define dummy functions
     GraphBuilder = None
+    GraphConfig = None
+    
     def to_graph(*args, **kwargs):
-        raise ImportError("GraphBuilder not available. Install torch-geometric for graph conversion.")
+        raise ImportError(
+            "Graph conversion requires PyTorch and PyTorch Geometric. "
+            "Install with: pip install torch torch-geometric"
+        )
+    
+    def convert_to_graph(*args, **kwargs):
+        return to_graph(*args, **kwargs)
 
-# API imports - only import if modules exist
+# FIXED: Materials Project API imports
 try:
     from .api.materials_project import (
         MaterialsProjectAPI,
@@ -65,10 +80,18 @@ try:
 except ImportError:
     # API not available, define dummy functions
     MaterialsProjectAPI = None
+    
     def search_materials_database(*args, **kwargs):
-        raise ImportError("Materials Project API not available.")
+        raise ImportError(
+            "Materials Project API not available. "
+            "Install with: pip install mp-api"
+        )
+    
     def load_from_materials_project(*args, **kwargs):
-        raise ImportError("Materials Project API not available.")
+        raise ImportError(
+            "Materials Project API not available. "
+            "Install with: pip install mp-api"
+        )
 
 # Exception imports  
 from .utils.exceptions import (
@@ -101,7 +124,6 @@ def load_structure(filepath_or_content, format=None):
     parser = get_parser(format)
     return parser.parse(filepath_or_content)
 
-# FIXED: Create validate_structure function using StructureValidator
 def validate_structure(structure, validation_level="medium"):
     """
     Validate crystal structure using StructureValidator.
@@ -201,7 +223,7 @@ parse = load_structure
 # Version info
 version_info = tuple(int(x) for x in __version__.split('.'))
 
-# All public API
+# All public API - UPDATED with all working functions
 __all__ = [
     # Version info
     '__version__',
@@ -218,7 +240,7 @@ __all__ = [
     'auto_detect_format',
     'get_parser',
     
-    # Validators (FIXED)
+    # Validators
     'StructureValidator',
     'ValidationResult',
     'BaseValidator',
@@ -227,11 +249,13 @@ __all__ = [
     'CompositionValidator',
     'validate_structure',
     
-    # Converters (optional)
+    # Converters
     'GraphBuilder',
+    'GraphConfig',
     'to_graph',
+    'convert_to_graph',
     
-    # API (optional)
+    # Materials Project API
     'MaterialsProjectAPI',
     'search_materials_database',
     'load_from_materials_project',
