@@ -9,12 +9,14 @@ This library provides comprehensive tools for:
 - Integration with Materials Project database
 - Batch processing and analysis
 
-Version 0.2.1 - Bug Fix Release
-===============================
-Fixed POSCAR parsing bug for Materials Project format files.
+
+Version 0.2.2 - Search & Field Fix Release
+==========================================
+Fixed Materials Project API search logic and invalid field names.
+main crysio __init__.py file.
 """
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 __author__ = "Dafa, Abdullah Hasan"
 __email__ = "dafa.abdullahhasan@gmail.com"
 __license__ = "MIT"
@@ -70,28 +72,64 @@ except ImportError as e:
     def convert_to_graph(*args, **kwargs):
         return to_graph(*args, **kwargs)
 
-# FIXED: Materials Project API imports
+# FIXED: Materials Project API imports - More specific error handling
+MaterialsProjectAPI = None
+search_materials_database = None
+load_from_materials_project = None
+
 try:
-    from .api.materials_project import (
-        MaterialsProjectAPI,
-        search_materials_database,
-        load_from_materials_project
+    # Try absolute import first
+    from crysio.api.materials_project import (
+        MaterialsProjectAPI as _MaterialsProjectAPI,
+        search_materials_database as _search_materials_database,
+        load_from_materials_project as _load_from_materials_project
     )
-except ImportError:
-    # API not available, define dummy functions
-    MaterialsProjectAPI = None
     
-    def search_materials_database(*args, **kwargs):
-        raise ImportError(
-            "Materials Project API not available. "
-            "Install with: pip install mp-api"
-        )
+    # If successful, assign to module namespace
+    MaterialsProjectAPI = _MaterialsProjectAPI
+    search_materials_database = _search_materials_database
+    load_from_materials_project = _load_from_materials_project
     
-    def load_from_materials_project(*args, **kwargs):
-        raise ImportError(
-            "Materials Project API not available. "
-            "Install with: pip install mp-api"
+    print("✅ Materials Project API imported successfully to namespace")
+    
+except ImportError as e1:
+    try:
+        # Try relative import
+        from .api.materials_project import (
+            MaterialsProjectAPI as _MaterialsProjectAPI,
+            search_materials_database as _search_materials_database,
+            load_from_materials_project as _load_from_materials_project
         )
+        
+        # If successful, assign to module namespace
+        MaterialsProjectAPI = _MaterialsProjectAPI
+        search_materials_database = _search_materials_database
+        load_from_materials_project = _load_from_materials_project
+        
+        print("✅ Materials Project API imported successfully (relative import)")
+        
+    except ImportError as e2:
+        # Both imports failed, provide detailed debug info
+        print(f"⚠️  Materials Project API import failed:")
+        print(f"   Absolute import error: {e1}")
+        print(f"   Relative import error: {e2}")
+        
+        # Define fallback dummy functions
+        MaterialsProjectAPI = None
+        
+        def search_materials_database(*args, **kwargs):
+            raise ImportError(
+                f"Materials Project API not available. Import errors:\n"
+                f"1. {e1}\n2. {e2}\n"
+                f"Try: pip install mp-api"
+            )
+        
+        def load_from_materials_project(*args, **kwargs):
+            raise ImportError(
+                f"Materials Project API not available. Import errors:\n" 
+                f"1. {e1}\n2. {e2}\n"
+                f"Try: pip install mp-api"
+            )
 
 # Exception imports  
 from .utils.exceptions import (

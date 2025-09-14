@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "crysio"
-version = "0.2.1"
+version = "0.2.2"
 description = "Crystal I/O toolkit for preprocessing and visualizing crystal structures for machine learning applications"
 readme = "README.md"
 license = {text = "MIT"}

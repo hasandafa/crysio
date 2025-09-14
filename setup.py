@@ -20,7 +20,7 @@ def get_version():
             print(f"Error reading version from {init_file}: {e}")
     
     # Fallback
-    return "0.2.1"
+    return "0.2.2"
 
 def get_requirements():
     """Read requirements.txt"""

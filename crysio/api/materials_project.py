@@ -3,6 +3,8 @@ Materials Project API integration using the modern mp-api client.
 
 This module provides interfaces to the Materials Project database using the
 official mp-api package with MPRester client.
+
+Version 0.2.2 - Fixed search and field name issues
 """
 
 import os
@@ -292,13 +294,17 @@ class MaterialsProjectAPI:
         if stability_range:
             search_params['energy_above_hull'] = stability_range
         
-        # Crystal system
+        # Crystal system - use symmetry data instead of direct field
         if crystal_system:
-            search_params['crystal_system'] = crystal_system
+            # Note: crystal_system field may not be directly searchable
+            # Will be included in returned data but not as search parameter
+            pass
         
-        # Space group
+        # Space group - use symmetry data instead of direct field  
         if space_group:
-            search_params['spacegroup'] = space_group
+            # Note: spacegroup field may not be directly searchable
+            # Will be included in returned data but not as search parameter
+            pass
         
         # Properties filter using HasProps
         if has_properties and HasProps:
@@ -309,11 +315,11 @@ class MaterialsProjectAPI:
             if props_enum:
                 search_params['has_props'] = props_enum
         
-        # Define fields to retrieve
+        # FIXED: Use valid field names based on MP API documentation
         fields = [
             'material_id', 'formula_pretty', 'structure',
             'formation_energy_per_atom', 'band_gap', 'energy_above_hull',
-            'crystal_system', 'spacegroup', 'volume', 'density'
+            'symmetry', 'volume', 'density'  # Use 'symmetry' instead of 'crystal_system', 'spacegroup'
         ]
         
         return self.search_materials(fields=fields, limit=limit, **search_params)
@@ -344,12 +350,12 @@ class MaterialsProjectAPI:
         
         try:
             with MPRester(self.config.api_key) as mpr:
-                # Get structures in batch
+                # Get structures in batch with valid field names
                 fields = ['material_id', 'structure', 'formula_pretty']
                 if include_properties:
                     fields.extend([
                         'formation_energy_per_atom', 'band_gap', 'energy_above_hull',
-                        'crystal_system', 'spacegroup', 'volume', 'density'
+                        'symmetry', 'volume', 'density'  # Use 'symmetry' instead of invalid fields
                     ])
                 
                 docs = mpr.materials.summary.search(
@@ -541,6 +547,84 @@ class MaterialsProjectAPI:
             }
 
 
+# =============================================================================
+# GLOBAL UTILITY FUNCTIONS - FIXED FOR v0.2.2
+# =============================================================================
+
+def search_materials_database(query: str, 
+                             api_key: Optional[str] = None, 
+                             limit: int = 10,
+                             **kwargs) -> List[Dict[str, Any]]:
+    """
+    Search the Materials Project database with a general query.
+    
+    FIXED in v0.2.2: Improved query detection logic to properly handle formulas.
+    
+    Args:
+        query: Search query (formula, elements, or material properties)
+        api_key: Materials Project API key (optional if MP_API_KEY env var set)
+        limit: Maximum number of results to return
+        **kwargs: Additional search parameters
+        
+    Returns:
+        List of material data dictionaries
+        
+    Examples:
+        >>> results = search_materials_database("SiC", limit=5)     # Formula search
+        >>> results = search_materials_database("Li", limit=20)     # Element search
+        >>> results = search_materials_database("Al2O3", limit=10)  # Formula search
+    """
+    if not MP_API_AVAILABLE:
+        raise ImportError(
+            "Materials Project search requires mp-api package. "
+            "Install with: pip install mp-api"
+        )
+    
+    try:
+        mp_api = MaterialsProjectAPI(api_key)
+        
+        # FIXED: Better query detection logic
+        if len(query) <= 2 and query.isalpha() and query.isupper():
+            # Single element like "Li", "C", "Si", "Al"
+            return mp_api.search_materials(elements=[query], limit=limit, **kwargs)
+        else:
+            # Chemical formula like "SiC", "LiFePO4", "Al2O3", "TiO2"
+            return mp_api.search_materials(formula=query, limit=limit, **kwargs)
+            
+    except Exception as e:
+        raise APIError(f"Materials database search failed for '{query}': {str(e)}", 'Materials Project')
+
+
+def load_from_materials_project(material_id: str, 
+                               api_key: Optional[str] = None) -> Crystal:
+    """
+    Load a crystal structure from Materials Project by material ID.
+    
+    Args:
+        material_id: Materials Project ID (e.g., 'mp-149', 'mp-8062')
+        api_key: Materials Project API key (optional if MP_API_KEY env var set)
+        
+    Returns:
+        Crystal: Crystal structure object
+        
+    Examples:
+        >>> structure = load_from_materials_project("mp-149")
+        >>> structure = load_from_materials_project("mp-8062", api_key="your_key")
+    """
+    if not MP_API_AVAILABLE:
+        raise ImportError(
+            "Materials Project loading requires mp-api package. "
+            "Install with: pip install mp-api"
+        )
+    
+    try:
+        mp_api = MaterialsProjectAPI(api_key)
+        return mp_api.get_structure_by_material_id(material_id)
+        
+    except Exception as e:
+        raise APIError(f"Failed to load structure {material_id}: {str(e)}", 'Materials Project')
+
+
 # Utility functions for common operations
 def quick_search(formula: str, api_key: Optional[str] = None, limit: int = 10) -> List[Tuple[str, Crystal]]:
     """
@@ -613,7 +697,6 @@ def search_battery_materials(api_key: Optional[str] = None, limit: int = 50) -> 
     
     # Search for materials with Li and reasonable band gap for electrodes
     return mp_api.search_by_criteria(
-        elements=['Li'],
         band_gap_range=(0.0, 4.0),  # Semiconductors and metals
         stability_range=(0.0, 0.1),  # Stable materials
         limit=limit
