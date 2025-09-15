@@ -217,3 +217,62 @@ class ConfigurationError(CrysioError):
         error_msg += f": {message}"
         
         super().__init__(error_msg)
+
+
+# Additional exception for dependency errors
+class DependencyError(CrysioError):
+    """
+    Raised when required dependencies are missing.
+    
+    This exception is raised when optional dependencies needed for
+    specific functionality (visualization, graph processing, etc.) are not available.
+    
+    Attributes:
+        missing_deps: List of missing dependency names
+        feature: The feature that requires these dependencies
+        message: Detailed error message
+    """
+    
+    def __init__(
+        self, 
+        message: str, 
+        missing_deps: Optional[list] = None,
+        feature: Optional[str] = None
+    ):
+        self.missing_deps = missing_deps or []
+        self.feature = feature
+        self.message = message
+        
+        error_msg = f"Dependency Error"
+        if feature:
+            error_msg += f" ({feature})"
+        error_msg += f": {message}"
+        if missing_deps:
+            error_msg += f" Missing: {', '.join(missing_deps)}"
+        
+        super().__init__(error_msg)
+
+
+# Additional exception for geometry errors  
+class GeometryError(CrysioError):
+    """
+    Raised when there's an error in geometric calculations.
+    
+    This includes errors in coordinate transformations, distance calculations,
+    unit cell operations, etc.
+    
+    Attributes:
+        operation: The geometric operation that failed
+        message: Detailed error message
+    """
+    
+    def __init__(self, message: str, operation: Optional[str] = None):
+        self.operation = operation
+        self.message = message
+        
+        error_msg = f"Geometry Error"
+        if operation:
+            error_msg += f" ({operation})"
+        error_msg += f": {message}"
+        
+        super().__init__(error_msg)

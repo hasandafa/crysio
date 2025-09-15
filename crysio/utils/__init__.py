@@ -1,36 +1,34 @@
 """
-Utilities module for Crysio library.
+Utility modules for Crysio library.
 
-This module provides utility functions, configuration management,
-exception classes, and helper functions.
+This package contains utility functions and classes that support
+the core functionality of the Crysio library.
 """
 
+# Import all exception classes for easy access
 from .exceptions import (
     CrysioError,
     ParsingError,
-    ValidationError, 
+    ValidationError,
     ConversionError,
     APIError,
     GraphBuildingError,
     VisualizationError,
-    ConfigurationError
+    ConfigurationError,
+    DependencyError,
+    GeometryError
 )
-
-# Import placeholder classes (to be implemented)
-# from .config import Config
-# from .helpers import *
 
 __all__ = [
     # Exception classes
     'CrysioError',
-    'ParsingError', 
+    'ParsingError',
     'ValidationError',
     'ConversionError',
     'APIError',
     'GraphBuildingError',
     'VisualizationError',
     'ConfigurationError',
-    
-    # Placeholder for future classes
-    # 'Config',
+    'DependencyError',
+    'GeometryError'
 ]

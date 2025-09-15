@@ -1,315 +1,312 @@
 """
-Crysio: Crystal I/O toolkit for preprocessing and visualizing crystal structures 
-for machine learning applications.
+Crysio: Crystal I/O and Visualization Library
 
-This library provides comprehensive tools for:
-- Loading and parsing crystal structures (CIF, POSCAR, XYZ)
-- Converting structures to PyTorch Geometric graphs
-- Structure validation and cleaning
-- Integration with Materials Project database
-- Batch processing and analysis
-
-
-Version 0.2.2 - Search & Field Fix Release
-==========================================
-Fixed Materials Project API search logic and invalid field names.
-main crysio __init__.py file.
+A comprehensive toolkit for crystal structure processing, analysis, and visualization,
+designed for materials science research and machine learning applications.
 """
 
-__version__ = "0.2.2"
-__author__ = "Dafa, Abdullah Hasan"
+# Version info
+__version__ = "0.3.0"
+__author__ = "Abdullah Hasan Dafa"
 __email__ = "dafa.abdullahhasan@gmail.com"
-__license__ = "MIT"
 
-# Core imports
-from .core.crystal import (
-    Crystal,
-    LatticeParameters,
-    AtomicSite
-)
+# Core functionality imports
+from .core.crystal import Crystal, LatticeParameters, AtomicSite
+from .core.parsers import CIFParser, POSCARParser, auto_detect_format, load_structure
+from .core.validators import validate_structure, CrystalValidator
 
-from .core.parsers import (
-    CIFParser,
-    POSCARParser,
-    auto_detect_format,
-    get_parser
-)
+# Conversion utilities
+from .converters.graph_builder import to_graph, GraphBuilder
 
-# Import what actually exists in validators.py
-from .core.validators import (
-    StructureValidator,
-    ValidationResult,
-    BaseValidator,
-    LatticeValidator,
-    AtomicPositionValidator,
-    CompositionValidator
-)
-
-# FIXED: Converter imports with proper error handling
+# Visualization functionality (with graceful fallbacks)
 try:
-    from .converters import (
-        GraphBuilder,
-        GraphConfig,
-        to_graph
+    from .visualizers import (
+        plot_unit_cell_2d,
+        plot_crystal_3d,
+        plot_lattice_parameters,
+        plot_atomic_positions,
+        plot_property_distribution,
+        plot_correlation_matrix,
+        plot_structure_comparison,
+        CrystalVisualizer,
+        AnalysisVisualizer,
+        check_visualization_dependencies,
+        VISUALIZATION_AVAILABLE
     )
+    VISUALIZATION_ENABLED = True
+except ImportError:
+    # Graceful fallback when visualization dependencies missing
+    VISUALIZATION_ENABLED = False
+    VISUALIZATION_AVAILABLE = False
     
-    # Ensure to_graph is available at top level
-    def convert_to_graph(crystal_structure, **kwargs):
-        """Alias for to_graph function."""
-        return to_graph(crystal_structure, **kwargs)
-        
-except ImportError as e:
-    # GraphBuilder not available, define dummy functions
-    GraphBuilder = None
-    GraphConfig = None
-    
-    def to_graph(*args, **kwargs):
+    # Create placeholder functions that provide helpful error messages
+    def _visualization_not_available(*args, **kwargs):
         raise ImportError(
-            "Graph conversion requires PyTorch and PyTorch Geometric. "
-            "Install with: pip install torch torch-geometric"
+            "Visualization features not available. Install with: "
+            "pip install matplotlib plotly seaborn pandas"
         )
     
-    def convert_to_graph(*args, **kwargs):
-        return to_graph(*args, **kwargs)
+    plot_unit_cell_2d = _visualization_not_available
+    plot_crystal_3d = _visualization_not_available
+    plot_lattice_parameters = _visualization_not_available
+    plot_atomic_positions = _visualization_not_available
+    plot_property_distribution = _visualization_not_available
+    plot_correlation_matrix = _visualization_not_available
+    plot_structure_comparison = _visualization_not_available
+    CrystalVisualizer = _visualization_not_available
+    AnalysisVisualizer = _visualization_not_available
+    
+    def check_visualization_dependencies():
+        print("❌ Visualization dependencies not available")
+        print("Install with: pip install matplotlib plotly seaborn pandas")
+        return False
 
-# FIXED: Materials Project API imports - More specific error handling
-MaterialsProjectAPI = None
-search_materials_database = None
-load_from_materials_project = None
-
+# Graph visualization functionality (with graceful fallbacks)
 try:
-    # Try absolute import first
-    from crysio.api.materials_project import (
-        MaterialsProjectAPI as _MaterialsProjectAPI,
-        search_materials_database as _search_materials_database,
-        load_from_materials_project as _load_from_materials_project
+    from .visualizers.graph_viz import (
+        plot_graph_network,
+        plot_adjacency_matrix,
+        plot_3d_graph_overlay,
+        plot_graph_metrics,
+        GraphVisualizer
     )
+    GRAPH_VISUALIZATION_ENABLED = True
+except ImportError:
+    GRAPH_VISUALIZATION_ENABLED = False
     
-    # If successful, assign to module namespace
-    MaterialsProjectAPI = _MaterialsProjectAPI
-    search_materials_database = _search_materials_database
-    load_from_materials_project = _load_from_materials_project
-    
-    print("✅ Materials Project API imported successfully to namespace")
-    
-except ImportError as e1:
-    try:
-        # Try relative import
-        from .api.materials_project import (
-            MaterialsProjectAPI as _MaterialsProjectAPI,
-            search_materials_database as _search_materials_database,
-            load_from_materials_project as _load_from_materials_project
+    def _graph_visualization_not_available(*args, **kwargs):
+        raise ImportError(
+            "Graph visualization not available. Install with: "
+            "pip install networkx matplotlib plotly"
         )
-        
-        # If successful, assign to module namespace
-        MaterialsProjectAPI = _MaterialsProjectAPI
-        search_materials_database = _search_materials_database
-        load_from_materials_project = _load_from_materials_project
-        
-        print("✅ Materials Project API imported successfully (relative import)")
-        
-    except ImportError as e2:
-        # Both imports failed, provide detailed debug info
-        print(f"⚠️  Materials Project API import failed:")
-        print(f"   Absolute import error: {e1}")
-        print(f"   Relative import error: {e2}")
-        
-        # Define fallback dummy functions
-        MaterialsProjectAPI = None
-        
-        def search_materials_database(*args, **kwargs):
-            raise ImportError(
-                f"Materials Project API not available. Import errors:\n"
-                f"1. {e1}\n2. {e2}\n"
-                f"Try: pip install mp-api"
-            )
-        
-        def load_from_materials_project(*args, **kwargs):
-            raise ImportError(
-                f"Materials Project API not available. Import errors:\n" 
-                f"1. {e1}\n2. {e2}\n"
-                f"Try: pip install mp-api"
-            )
+    
+    plot_graph_network = _graph_visualization_not_available
+    plot_adjacency_matrix = _graph_visualization_not_available
+    plot_3d_graph_overlay = _graph_visualization_not_available
+    plot_graph_metrics = _graph_visualization_not_available
+    GraphVisualizer = _graph_visualization_not_available
 
-# Exception imports  
+# Materials Project API integration (with graceful fallbacks)
+try:
+    from .api.materials_project import (
+        MaterialsProjectAPI,
+        search_materials_database,
+        load_from_materials_project
+    )
+    MATERIALS_PROJECT_ENABLED = True
+except ImportError:
+    MATERIALS_PROJECT_ENABLED = False
+    MaterialsProjectAPI = None
+    
+    def search_materials_database(*args, **kwargs):
+        raise ImportError(
+            "Materials Project API not available. Install with: "
+            "pip install mp-api"
+        )
+    
+    def load_from_materials_project(*args, **kwargs):
+        raise ImportError(
+            "Materials Project API not available. Install with: "
+            "pip install mp-api"
+        )
+
+# Exception classes
 from .utils.exceptions import (
     CrysioError,
     ParsingError,
     ValidationError,
+    APIError,
+    ConfigurationError,
     ConversionError,
-    APIError
+    GraphBuildingError,
+    VisualizationError,
+    DependencyError,
+    GeometryError
 )
 
-# Main API functions
-def load_structure(filepath_or_content, format=None):
+def check_dependencies():
     """
-    Load crystal structure from file or content string.
+    Check availability of optional dependencies and provide installation guidance.
     
-    Args:
-        filepath_or_content: Path to structure file or content as string
-        format: File format ('cif', 'poscar', etc.). If None, auto-detect.
-        
     Returns:
-        Crystal: Loaded crystal structure
-        
-    Examples:
-        >>> structure = crysio.load_structure("example.cif")
-        >>> structure = crysio.load_structure("POSCAR", format="poscar")
+        dict: Status of each dependency group
     """
-    if format is None:
-        format = auto_detect_format(filepath_or_content)
+    status = {
+        'core': True,  # Core functionality always available
+        'visualization': VISUALIZATION_AVAILABLE,
+        'graph_visualization': GRAPH_VISUALIZATION_ENABLED,
+        'materials_project': MATERIALS_PROJECT_ENABLED,
+        'graph_processing': True  # Checked in graph_builder module
+    }
     
-    parser = get_parser(format)
-    return parser.parse(filepath_or_content)
-
-def validate_structure(structure, validation_level="medium"):
-    """
-    Validate crystal structure using StructureValidator.
+    print("=== CRYSIO DEPENDENCY STATUS ===")
+    print(f"Version: {__version__}")
+    print()
     
-    Args:
-        structure: Crystal structure to validate
-        validation_level: Currently not implemented, kept for compatibility
-        
-    Returns:
-        Tuple[bool, List[str]]: (is_valid, list_of_issues)
-        
-    Examples:
-        >>> is_valid, issues = crysio.validate_structure(structure)
-    """
-    validator = StructureValidator()
-    result = validator.validate(structure)
+    # Core functionality
+    print("✅ Core functionality: Available")
+    print("   - Crystal structure representation")
+    print("   - File parsing (CIF, POSCAR)")
+    print("   - Structure validation")
+    print()
     
-    # Convert ValidationResult to tuple format
-    issues = []
-    if hasattr(result, 'errors'):
-        issues.extend(result.errors)
-    if hasattr(result, 'warnings'):
-        issues.extend(result.warnings)
-    
-    return result.is_valid, issues
-
-def clean_structure(structure, validation_level="medium"):
-    """
-    Clean and validate crystal structure.
-    
-    Args:
-        structure: Crystal structure to clean
-        validation_level: Validation strictness (placeholder)
-        
-    Returns:
-        Crystal: Input structure (cleaning not implemented yet)
-        
-    Examples:
-        >>> clean_struct = crysio.clean_structure(structure)
-    """
-    # For now, just validate and return original structure
-    # Cleaning functionality to be implemented
-    is_valid, issues = validate_structure(structure, validation_level)
-    
-    if not is_valid:
-        print("Validation issues found:", issues)
-    
-    return structure
-
-def batch_process(structures_or_paths, format=None, validation_level="medium", 
-                 progress=True, n_workers=1):
-    """
-    Process multiple crystal structures in batch.
-    
-    Args:
-        structures_or_paths: List of file paths or Crystal objects
-        format: File format if loading from paths
-        validation_level: Validation strictness
-        progress: Show progress bar
-        n_workers: Number of parallel workers
-        
-    Returns:
-        List[Crystal]: Processed crystal structures
-        
-    Examples:
-        >>> structures = crysio.batch_process(["file1.cif", "file2.cif"])
-    """
+    # Graph processing
     try:
-        from tqdm import tqdm
-        iterator = tqdm(structures_or_paths, desc="Processing structures") if progress else structures_or_paths
+        import torch
+        import torch_geometric
+        print("✅ Graph processing: Available")
+        print("   - PyTorch Geometric integration")
+        print("   - Crystal-to-graph conversion")
+        status['graph_processing'] = True
     except ImportError:
-        iterator = structures_or_paths
+        print("⚠️  Graph processing: Partially available")
+        print("   - Install PyTorch and PyTorch Geometric for full functionality")
+        print("   - pip install torch torch-geometric")
+        status['graph_processing'] = False
+    print()
     
-    processed = []
+    # Visualization
+    if status['visualization']:
+        print("✅ Visualization: Available") 
+        print("   - 2D/3D crystal structure plots")
+        print("   - Statistical analysis charts")
+        print("   - Interactive visualizations")
+    else:
+        print("❌ Visualization: Not available")
+        print("   - Install with: pip install matplotlib plotly seaborn pandas")
+    print()
     
-    for item in iterator:
-        try:
-            if isinstance(item, Crystal):
-                structure = item
-            else:
-                structure = load_structure(item, format=format)
-            
-            clean_struct = clean_structure(structure, validation_level=validation_level)
-            processed.append(clean_struct)
-            
-        except Exception as e:
-            if progress and hasattr(iterator, 'set_postfix'):
-                iterator.set_postfix({"error": str(e)[:30]})
-            continue
+    # Graph visualization
+    if status['graph_visualization']:
+        print("✅ Graph visualization: Available")
+        print("   - Network topology plots")
+        print("   - Adjacency matrix heatmaps")
+        print("   - 3D graph overlays")
+        print("   - Graph metrics analysis")
+    else:
+        print("❌ Graph visualization: Not available")
+        print("   - Install with: pip install networkx matplotlib plotly")
+    print()
     
-    return processed
+    # Materials Project API
+    if status['materials_project']:
+        print("✅ Materials Project API: Available")
+        print("   - Database search and download")
+        print("   - Property analysis")
+    else:
+        print("❌ Materials Project API: Not available")
+        print("   - Install with: pip install mp-api")
+    print()
+    
+    # Overall status
+    available_features = sum(status.values())
+    total_features = len(status)
+    print(f"📊 Overall: {available_features}/{total_features} feature groups available")
+    
+    if available_features == total_features:
+        print("🎉 All features are available!")
+    elif available_features >= 3:
+        print("✅ Most features ready. Install optional dependencies for full capabilities.")
+    else:
+        print("⚠️  Limited functionality. Consider installing additional dependencies.")
+    
+    return status
 
-# Convenience aliases
-load = load_structure
-parse = load_structure
 
-# Version info
-version_info = tuple(int(x) for x in __version__.split('.'))
+def create_example_crystal():
+    """
+    Create an example crystal structure for testing and demonstrations.
+    
+    Returns:
+        Crystal: Simple cubic silicon carbide structure
+    """
+    # Simple SiC structure for demonstration
+    lattice = LatticeParameters(
+        a=4.36, b=4.36, c=4.36,
+        alpha=90.0, beta=90.0, gamma=90.0,
+        crystal_system="cubic"
+    )
+    
+    sites = [
+        AtomicSite(element="Si", x=0.0, y=0.0, z=0.0),
+        AtomicSite(element="C", x=0.25, y=0.25, z=0.25),
+        AtomicSite(element="Si", x=0.5, y=0.5, z=0.0),
+        AtomicSite(element="C", x=0.75, y=0.75, z=0.25),
+        AtomicSite(element="Si", x=0.5, y=0.0, z=0.5),
+        AtomicSite(element="C", x=0.75, y=0.25, z=0.75),
+        AtomicSite(element="Si", x=0.0, y=0.5, z=0.5),
+        AtomicSite(element="C", x=0.25, y=0.75, z=0.75)
+    ]
+    
+    return Crystal(lattice_parameters=lattice, atomic_sites=sites)
 
-# All public API - UPDATED with all working functions
+
+# Export main classes and functions
 __all__ = [
     # Version info
     '__version__',
-    'version_info',
     
     # Core classes
     'Crystal',
     'LatticeParameters', 
     'AtomicSite',
     
-    # Parsers
+    # Parsing functions
     'CIFParser',
     'POSCARParser',
     'auto_detect_format',
-    'get_parser',
+    'load_structure',
     
-    # Validators
-    'StructureValidator',
-    'ValidationResult',
-    'BaseValidator',
-    'LatticeValidator',
-    'AtomicPositionValidator',
-    'CompositionValidator',
+    # Validation
     'validate_structure',
+    'CrystalValidator',
     
-    # Converters
-    'GraphBuilder',
-    'GraphConfig',
+    # Graph conversion
     'to_graph',
-    'convert_to_graph',
+    'GraphBuilder',
     
-    # Materials Project API
+    # Visualization (if available)
+    'plot_unit_cell_2d',
+    'plot_crystal_3d',
+    'plot_lattice_parameters', 
+    'plot_atomic_positions',
+    'plot_property_distribution',
+    'plot_correlation_matrix',
+    'plot_structure_comparison',
+    'CrystalVisualizer',
+    'AnalysisVisualizer',
+    'check_visualization_dependencies',
+    
+    # Graph visualization (if available)
+    'plot_graph_network',
+    'plot_adjacency_matrix',
+    'plot_3d_graph_overlay',
+    'plot_graph_metrics',
+    'GraphVisualizer',
+    
+    # Materials Project API (if available)
     'MaterialsProjectAPI',
     'search_materials_database',
     'load_from_materials_project',
     
-    # Exceptions
-    'CrysioError',
-    'ParsingError', 
-    'ValidationError',
-    'ConversionError',
-    'APIError',
+    # Utilities
+    'check_dependencies',
+    'create_example_crystal',
     
-    # Main functions
-    'load_structure',
-    'clean_structure',
-    'batch_process',
-    'validate_structure',
-    'load',
-    'parse',
+    # Exception classes
+    'CrysioError',
+    'ParsingError',
+    'ValidationError',
+    'APIError',
+    'ConfigurationError',
+    'ConversionError',
+    'GraphBuildingError',
+    'VisualizationError',
+    'DependencyError',
+    'GeometryError',
+    
+    # Feature flags
+    'VISUALIZATION_ENABLED',
+    'GRAPH_VISUALIZATION_ENABLED',
+    'MATERIALS_PROJECT_ENABLED'
 ]
