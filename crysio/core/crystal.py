@@ -57,6 +57,59 @@ class LatticeParameters:
         ])
         
         return matrix
+    
+    # Compatibility method for visualization modules
+    def get_lattice_matrix(self) -> np.ndarray:
+        """Compatibility method - alias for lattice_matrix.""" 
+        return self.lattice_matrix()
+    
+    @property
+    def crystal_system(self) -> str:
+        """Determine crystal system based on lattice parameters."""
+        a, b, c = self.a, self.b, self.c
+        alpha, beta, gamma = self.alpha, self.beta, self.gamma
+        
+        # Tolerance for comparison
+        tol = 1e-5
+        angle_tol = 0.1  # degrees
+        
+        # Helper functions
+        def is_equal(x, y, tolerance=tol):
+            return abs(x - y) < tolerance
+        
+        def is_90(angle, tolerance=angle_tol):
+            return abs(angle - 90.0) < tolerance
+        
+        def is_120(angle, tolerance=angle_tol):
+            return abs(angle - 120.0) < tolerance
+        
+        # Cubic: a = b = c, α = β = γ = 90°
+        if is_equal(a, b) and is_equal(b, c) and is_90(alpha) and is_90(beta) and is_90(gamma):
+            return "cubic"
+        
+        # Tetragonal: a = b ≠ c, α = β = γ = 90°
+        elif is_equal(a, b) and not is_equal(a, c) and is_90(alpha) and is_90(beta) and is_90(gamma):
+            return "tetragonal"
+        
+        # Orthorhombic: a ≠ b ≠ c, α = β = γ = 90°
+        elif not is_equal(a, b) and not is_equal(b, c) and not is_equal(a, c) and is_90(alpha) and is_90(beta) and is_90(gamma):
+            return "orthorhombic"
+        
+        # Hexagonal: a = b ≠ c, α = β = 90°, γ = 120°
+        elif is_equal(a, b) and not is_equal(a, c) and is_90(alpha) and is_90(beta) and is_120(gamma):
+            return "hexagonal"
+        
+        # Trigonal/Rhombohedral: a = b = c, α = β = γ ≠ 90°
+        elif is_equal(a, b) and is_equal(b, c) and is_equal(alpha, beta) and is_equal(beta, gamma) and not is_90(alpha):
+            return "trigonal"
+        
+        # Monoclinic: a ≠ b ≠ c, α = γ = 90° ≠ β
+        elif not is_equal(a, b) and not is_equal(b, c) and is_90(alpha) and not is_90(beta) and is_90(gamma):
+            return "monoclinic"
+        
+        # Triclinic: a ≠ b ≠ c, α ≠ β ≠ γ ≠ 90°
+        else:
+            return "triclinic"
 
 
 @dataclass 
@@ -92,6 +145,12 @@ class AtomicSite:
             np.ndarray: Cartesian coordinates [x, y, z] in Å
         """
         return lattice_matrix @ self.position
+    
+    # Compatibility property for visualization modules
+    @property  
+    def fractional_coords(self) -> np.ndarray:
+        """Compatibility property - alias for position."""
+        return self.position
 
 
 class Crystal:
@@ -189,6 +248,22 @@ class Crystal:
         density = (total_mass * 1.66054e-24) / volume_cm3  # amu to g conversion
         
         return density
+    
+    # Compatibility properties for visualization modules
+    @property
+    def atomic_sites(self) -> List[AtomicSite]:
+        """Compatibility property - alias for sites."""
+        return self.sites
+
+    @property
+    def lattice_parameters(self) -> LatticeParameters:
+        """Compatibility property - alias for lattice."""
+        return self.lattice
+
+    @property
+    def composition(self) -> str:
+        """Compatibility property - alias for formula."""
+        return self.formula
     
     def get_elements(self) -> List[str]:
         """Get list of unique elements in the structure."""
