@@ -8,305 +8,206 @@ designed for materials science research and machine learning applications.
 # Version info
 __version__ = "0.3.0"
 __author__ = "Abdullah Hasan Dafa"
-__email__ = "dafa.abdullahhasan@gmail.com"
+__email__ = "your.email@example.com"
+__license__ = "MIT"
 
-# Core functionality imports
-from .core.crystal import Crystal, LatticeParameters, AtomicSite
-from .core.parsers import CIFParser, POSCARParser, auto_detect_format, load_structure
-from .core.validators import validate_structure, CrystalValidator
-
-# Conversion utilities
-from .converters.graph_builder import to_graph, GraphBuilder
-
-# Visualization functionality (with graceful fallbacks)
+# Core imports with error handling
 try:
-    from .visualizers import (
-        plot_unit_cell_2d,
-        plot_crystal_3d,
-        plot_lattice_parameters,
-        plot_atomic_positions,
-        plot_property_distribution,
-        plot_correlation_matrix,
-        plot_structure_comparison,
-        CrystalVisualizer,
-        AnalysisVisualizer,
-        check_visualization_dependencies,
-        VISUALIZATION_AVAILABLE
-    )
-    VISUALIZATION_ENABLED = True
-except ImportError:
-    # Graceful fallback when visualization dependencies missing
-    VISUALIZATION_ENABLED = False
-    VISUALIZATION_AVAILABLE = False
+    from .core.crystal import Crystal, LatticeParameters, AtomicSite
+    from .core.parsers import parse_cif, parse_poscar, auto_detect_format
     
-    # Create placeholder functions that provide helpful error messages
-    def _visualization_not_available(*args, **kwargs):
-        raise ImportError(
-            "Visualization features not available. Install with: "
-            "pip install matplotlib plotly seaborn pandas"
-        )
+    # Create convenience functions
+    def load_crystal(filepath: str) -> Crystal:
+        """
+        Load crystal structure from file with auto-detection.
+        
+        Args:
+            filepath: Path to crystal structure file
+            
+        Returns:
+            Crystal: Loaded crystal structure
+        """
+        return auto_detect_format(filepath)
     
-    plot_unit_cell_2d = _visualization_not_available
-    plot_crystal_3d = _visualization_not_available
-    plot_lattice_parameters = _visualization_not_available
-    plot_atomic_positions = _visualization_not_available
-    plot_property_distribution = _visualization_not_available
-    plot_correlation_matrix = _visualization_not_available
-    plot_structure_comparison = _visualization_not_available
-    CrystalVisualizer = _visualization_not_available
-    AnalysisVisualizer = _visualization_not_available
+    # Export main loading function
+    load_structure = load_crystal  # Alias for compatibility
     
-    def check_visualization_dependencies():
-        print("❌ Visualization dependencies not available")
-        print("Install with: pip install matplotlib plotly seaborn pandas")
-        return False
+except ImportError as e:
+    import warnings
+    warnings.warn(f"Core crystal functionality not available: {e}")
+    Crystal = None
+    LatticeParameters = None
+    AtomicSite = None
+    load_crystal = None
+    load_structure = None
 
-# Graph visualization functionality (with graceful fallbacks)
+# Validators
 try:
-    from .visualizers.graph_viz import (
-        plot_graph_network,
-        plot_adjacency_matrix,
-        plot_3d_graph_overlay,
-        plot_graph_metrics,
-        GraphVisualizer
-    )
-    GRAPH_VISUALIZATION_ENABLED = True
+    from .core.validators import validate_crystal, CrystalValidator
 except ImportError:
-    GRAPH_VISUALIZATION_ENABLED = False
-    
-    def _graph_visualization_not_available(*args, **kwargs):
-        raise ImportError(
-            "Graph visualization not available. Install with: "
-            "pip install networkx matplotlib plotly"
-        )
-    
-    plot_graph_network = _graph_visualization_not_available
-    plot_adjacency_matrix = _graph_visualization_not_available
-    plot_3d_graph_overlay = _graph_visualization_not_available
-    plot_graph_metrics = _graph_visualization_not_available
-    GraphVisualizer = _graph_visualization_not_available
+    validate_crystal = None
+    CrystalValidator = None
 
-# Materials Project API integration (with graceful fallbacks)
+# Graph conversion
 try:
-    from .api.materials_project import (
-        MaterialsProjectAPI,
-        search_materials_database,
-        load_from_materials_project
-    )
-    MATERIALS_PROJECT_ENABLED = True
+    from .converters.graph_builder import to_graph, GraphBuilder
 except ImportError:
-    MATERIALS_PROJECT_ENABLED = False
+    to_graph = None
+    GraphBuilder = None
+
+# Materials Project API
+try:
+    from .api.materials_project import MaterialsProjectAPI, search_materials_database, load_from_materials_project
+except ImportError:
     MaterialsProjectAPI = None
-    
-    def search_materials_database(*args, **kwargs):
-        raise ImportError(
-            "Materials Project API not available. Install with: "
-            "pip install mp-api"
-        )
-    
-    def load_from_materials_project(*args, **kwargs):
-        raise ImportError(
-            "Materials Project API not available. Install with: "
-            "pip install mp-api"
-        )
+    search_materials_database = None
+    load_from_materials_project = None
+
+# Visualization (new in v0.3.0)
+try:
+    from . import visualizers
+    # Import main visualization functions
+    from .visualizers import (
+        plot_unit_cell_2d, plot_crystal_3d, plot_lattice_parameters,
+        plot_property_distribution, plot_correlation_matrix,
+        plot_graph_network, plot_adjacency_matrix
+    )
+except ImportError:
+    import warnings
+    warnings.warn("Visualization module not available. Install dependencies: pip install matplotlib plotly")
+    visualizers = None
 
 # Exception classes
-from .utils.exceptions import (
-    CrysioError,
-    ParsingError,
-    ValidationError,
-    APIError,
-    ConfigurationError,
-    ConversionError,
-    GraphBuildingError,
-    VisualizationError,
-    DependencyError,
-    GeometryError
-)
-
-def check_dependencies():
-    """
-    Check availability of optional dependencies and provide installation guidance.
-    
-    Returns:
-        dict: Status of each dependency group
-    """
-    status = {
-        'core': True,  # Core functionality always available
-        'visualization': VISUALIZATION_AVAILABLE,
-        'graph_visualization': GRAPH_VISUALIZATION_ENABLED,
-        'materials_project': MATERIALS_PROJECT_ENABLED,
-        'graph_processing': True  # Checked in graph_builder module
-    }
-    
-    print("=== CRYSIO DEPENDENCY STATUS ===")
-    print(f"Version: {__version__}")
-    print()
-    
-    # Core functionality
-    print("✅ Core functionality: Available")
-    print("   - Crystal structure representation")
-    print("   - File parsing (CIF, POSCAR)")
-    print("   - Structure validation")
-    print()
-    
-    # Graph processing
-    try:
-        import torch
-        import torch_geometric
-        print("✅ Graph processing: Available")
-        print("   - PyTorch Geometric integration")
-        print("   - Crystal-to-graph conversion")
-        status['graph_processing'] = True
-    except ImportError:
-        print("⚠️  Graph processing: Partially available")
-        print("   - Install PyTorch and PyTorch Geometric for full functionality")
-        print("   - pip install torch torch-geometric")
-        status['graph_processing'] = False
-    print()
-    
-    # Visualization
-    if status['visualization']:
-        print("✅ Visualization: Available") 
-        print("   - 2D/3D crystal structure plots")
-        print("   - Statistical analysis charts")
-        print("   - Interactive visualizations")
-    else:
-        print("❌ Visualization: Not available")
-        print("   - Install with: pip install matplotlib plotly seaborn pandas")
-    print()
-    
-    # Graph visualization
-    if status['graph_visualization']:
-        print("✅ Graph visualization: Available")
-        print("   - Network topology plots")
-        print("   - Adjacency matrix heatmaps")
-        print("   - 3D graph overlays")
-        print("   - Graph metrics analysis")
-    else:
-        print("❌ Graph visualization: Not available")
-        print("   - Install with: pip install networkx matplotlib plotly")
-    print()
-    
-    # Materials Project API
-    if status['materials_project']:
-        print("✅ Materials Project API: Available")
-        print("   - Database search and download")
-        print("   - Property analysis")
-    else:
-        print("❌ Materials Project API: Not available")
-        print("   - Install with: pip install mp-api")
-    print()
-    
-    # Overall status
-    available_features = sum(status.values())
-    total_features = len(status)
-    print(f"📊 Overall: {available_features}/{total_features} feature groups available")
-    
-    if available_features == total_features:
-        print("🎉 All features are available!")
-    elif available_features >= 3:
-        print("✅ Most features ready. Install optional dependencies for full capabilities.")
-    else:
-        print("⚠️  Limited functionality. Consider installing additional dependencies.")
-    
-    return status
-
-
-def create_example_crystal():
-    """
-    Create an example crystal structure for testing and demonstrations.
-    
-    Returns:
-        Crystal: Simple cubic silicon carbide structure
-    """
-    # Simple SiC structure for demonstration
-    lattice = LatticeParameters(
-        a=4.36, b=4.36, c=4.36,
-        alpha=90.0, beta=90.0, gamma=90.0,
-        crystal_system="cubic"
+try:
+    from .utils.exceptions import (
+        CrysioError, ParseError, ValidationError, 
+        VisualizationError, DependencyError, APIError
     )
+except ImportError:
+    # Define minimal exception classes if utils not available
+    class CrysioError(Exception):
+        """Base exception for Crysio library."""
+        pass
     
-    sites = [
-        AtomicSite(element="Si", x=0.0, y=0.0, z=0.0),
-        AtomicSite(element="C", x=0.25, y=0.25, z=0.25),
-        AtomicSite(element="Si", x=0.5, y=0.5, z=0.0),
-        AtomicSite(element="C", x=0.75, y=0.75, z=0.25),
-        AtomicSite(element="Si", x=0.5, y=0.0, z=0.5),
-        AtomicSite(element="C", x=0.75, y=0.25, z=0.75),
-        AtomicSite(element="Si", x=0.0, y=0.5, z=0.5),
-        AtomicSite(element="C", x=0.25, y=0.75, z=0.75)
-    ]
+    class ParseError(CrysioError):
+        """Exception raised for parsing errors."""
+        pass
     
-    return Crystal(lattice_parameters=lattice, atomic_sites=sites)
+    class ValidationError(CrysioError):
+        """Exception raised for validation errors."""
+        pass
 
-
-# Export main classes and functions
+# Define what gets exported when using "from crysio import *"
 __all__ = [
     # Version info
     '__version__',
+    '__author__',
+    '__license__',
     
     # Core classes
     'Crystal',
     'LatticeParameters', 
     'AtomicSite',
     
-    # Parsing functions
-    'CIFParser',
-    'POSCARParser',
-    'auto_detect_format',
-    'load_structure',
+    # Loading functions
+    'load_crystal',
+    'load_structure',  # Compatibility alias
+    'parse_cif',
+    'parse_poscar',
     
     # Validation
-    'validate_structure',
+    'validate_crystal',
     'CrystalValidator',
     
     # Graph conversion
     'to_graph',
     'GraphBuilder',
     
-    # Visualization (if available)
-    'plot_unit_cell_2d',
-    'plot_crystal_3d',
-    'plot_lattice_parameters', 
-    'plot_atomic_positions',
-    'plot_property_distribution',
-    'plot_correlation_matrix',
-    'plot_structure_comparison',
-    'CrystalVisualizer',
-    'AnalysisVisualizer',
-    'check_visualization_dependencies',
-    
-    # Graph visualization (if available)
-    'plot_graph_network',
-    'plot_adjacency_matrix',
-    'plot_3d_graph_overlay',
-    'plot_graph_metrics',
-    'GraphVisualizer',
-    
-    # Materials Project API (if available)
+    # Materials Project API
     'MaterialsProjectAPI',
     'search_materials_database',
     'load_from_materials_project',
     
-    # Utilities
-    'check_dependencies',
-    'create_example_crystal',
+    # Visualization module
+    'visualizers',
     
-    # Exception classes
+    # Main visualization functions
+    'plot_unit_cell_2d',
+    'plot_crystal_3d', 
+    'plot_lattice_parameters',
+    'plot_property_distribution',
+    'plot_correlation_matrix',
+    'plot_graph_network',
+    'plot_adjacency_matrix',
+    
+    # Exceptions
     'CrysioError',
-    'ParsingError',
+    'ParseError', 
     'ValidationError',
-    'APIError',
-    'ConfigurationError',
-    'ConversionError',
-    'GraphBuildingError',
     'VisualizationError',
     'DependencyError',
-    'GeometryError',
-    
-    # Feature flags
-    'VISUALIZATION_ENABLED',
-    'GRAPH_VISUALIZATION_ENABLED',
-    'MATERIALS_PROJECT_ENABLED'
+    'APIError'
 ]
+
+# Remove None values from __all__
+__all__ = [name for name in __all__ if globals().get(name) is not None]
+
+
+def get_info():
+    """Get information about Crysio installation and available features."""
+    info = {
+        'version': __version__,
+        'author': __author__,
+        'license': __license__,
+        'features': {}
+    }
+    
+    # Check core features
+    info['features']['core'] = Crystal is not None
+    info['features']['validation'] = validate_crystal is not None
+    info['features']['graph_conversion'] = to_graph is not None
+    info['features']['materials_project_api'] = MaterialsProjectAPI is not None
+    info['features']['visualization'] = visualizers is not None
+    
+    # Check visualization sub-features
+    if visualizers is not None:
+        try:
+            availability = visualizers.get_available_visualizers()
+            info['features']['visualization_modules'] = availability
+        except:
+            info['features']['visualization_modules'] = {}
+    
+    return info
+
+
+def check_installation():
+    """Check Crysio installation and print status report."""
+    print(f"Crysio v{__version__} Installation Status")
+    print("=" * 40)
+    
+    info = get_info()
+    
+    for feature, available in info['features'].items():
+        if isinstance(available, dict):
+            print(f"\n{feature.replace('_', ' ').title()}:")
+            for subfeature, sub_available in available.items():
+                status = "✅" if sub_available else "❌"
+                print(f"  {status} {subfeature}")
+        else:
+            status = "✅" if available else "❌"
+            print(f"{status} {feature.replace('_', ' ').title()}")
+    
+    # Installation recommendations
+    missing_features = [k for k, v in info['features'].items() 
+                       if isinstance(v, bool) and not v]
+    
+    if missing_features:
+        print(f"\n💡 To enable missing features:")
+        if 'visualization' in missing_features:
+            print("   pip install matplotlib plotly seaborn networkx")
+        if 'materials_project_api' in missing_features:
+            print("   pip install requests")
+        if 'graph_conversion' in missing_features:
+            print("   pip install torch torch-geometric")
+    else:
+        print(f"\n🎉 All features available!")
