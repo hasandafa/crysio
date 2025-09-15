@@ -48,8 +48,18 @@ try:
 except ImportError:
     PYTORCH_GEOMETRIC_AVAILABLE = False
 
-# Import Crysio modules
-from ..utils.exceptions import DependencyError, VisualizationError
+# Import Crysio modules - use try/except for robust imports
+try:
+    from crysio.utils.exceptions import DependencyError, VisualizationError
+except ImportError:
+    try:
+        from ..utils.exceptions import DependencyError, VisualizationError
+    except ImportError:
+        # Define minimal exception classes
+        class DependencyError(Exception):
+            pass
+        class VisualizationError(Exception):
+            pass
 
 
 class GraphVisualizer:

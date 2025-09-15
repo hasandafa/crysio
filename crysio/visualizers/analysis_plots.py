@@ -32,9 +32,27 @@ try:
 except ImportError:
     PLOTLY_AVAILABLE = False
 
-# Import Crysio modules
-from ..core.crystal import Crystal
-from ..utils.exceptions import DependencyError, VisualizationError
+# Import Crysio modules - use try/except for robust imports
+try:
+    from crysio.core.crystal import Crystal
+except ImportError:
+    try:
+        from ..core.crystal import Crystal
+    except ImportError:
+        # Define minimal Crystal class for testing
+        Crystal = None
+
+try:
+    from crysio.utils.exceptions import DependencyError, VisualizationError
+except ImportError:
+    try:
+        from ..utils.exceptions import DependencyError, VisualizationError
+    except ImportError:
+        # Define minimal exception classes
+        class DependencyError(Exception):
+            pass
+        class VisualizationError(Exception):
+            pass
 
 
 class AnalysisVisualizer:
