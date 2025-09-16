@@ -1,9 +1,10 @@
 """
-Graph Network Visualization Module
+Graph Network Visualization Module - FIXED VERSION
 
 Provides visualization capabilities for crystal structure graphs generated
 from the graph_builder module, including network topology, properties,
 and analysis metrics.
+Compatible with actual Crysio Crystal class structure.
 """
 
 import numpy as np
@@ -48,32 +49,19 @@ try:
 except ImportError:
     PYTORCH_GEOMETRIC_AVAILABLE = False
 
-# Import Crysio modules - use try/except for robust imports
+# FIXED: Use direct imports instead of relative
 try:
     from crysio.utils.exceptions import DependencyError, VisualizationError
 except ImportError:
-    try:
-        from ..utils.exceptions import DependencyError, VisualizationError
-    except ImportError:
-        # Define minimal exception classes
-        class DependencyError(Exception):
-            pass
-        class VisualizationError(Exception):
-            pass
+    class DependencyError(Exception): pass
+    class VisualizationError(Exception): pass
 
 
 class GraphVisualizer:
-    """
-    Comprehensive graph network visualizer for crystal structures.
-    """
+    """Comprehensive graph network visualizer for crystal structures."""
     
     def __init__(self, backend: str = 'matplotlib'):
-        """
-        Initialize the graph visualizer.
-        
-        Args:
-            backend: Visualization backend ('matplotlib' or 'plotly')
-        """
+        """Initialize the graph visualizer."""
         self.backend = backend
         self._validate_backend()
         
@@ -84,7 +72,8 @@ class GraphVisualizer:
             'F': '#90E050', 'Ne': '#B3E3F5', 'Na': '#AB5CF2', 'Mg': '#8AFF00',
             'Al': '#BFA6A6', 'Si': '#F0C8A0', 'P': '#FF8000', 'S': '#FFFF30',
             'Cl': '#1FF01F', 'Ar': '#80D1E3', 'K': '#8F40D4', 'Ca': '#3DFF00',
-            'Fe': '#E06633', 'Co': '#F090A0', 'Ni': '#50D050', 'Cu': '#C88033'
+            'Fe': '#E06633', 'Co': '#F090A0', 'Ni': '#50D050', 'Cu': '#C88033',
+            'Ga': '#C28F8F', 'Ge': '#668F8F', 'Ce': '#FFFFC7', 'Pr': '#D9FFC7', 'Nd': '#C7FFC7'
         }
         
         # Network layout algorithms
@@ -116,20 +105,7 @@ def plot_graph_network(graph_data: Union[Data, nx.Graph, Dict],
                       edge_color_property: Optional[str] = None,
                       figsize: Tuple[int, int] = (12, 8),
                       backend: str = 'matplotlib') -> Any:
-    """
-    Plot crystal structure as a network graph.
-    
-    Args:
-        graph_data: Graph data (PyTorch Geometric Data, NetworkX Graph, or dict)
-        layout: Network layout algorithm ('spring', 'circular', 'kamada_kawai', etc.)
-        node_color_property: Property to use for node coloring
-        edge_color_property: Property to use for edge coloring
-        figsize: Figure size for matplotlib
-        backend: Visualization backend
-        
-    Returns:
-        Figure object
-    """
+    """Plot crystal structure as a network graph."""
     visualizer = GraphVisualizer(backend)
     
     # Convert to NetworkX graph for easier handling
@@ -232,19 +208,25 @@ def _plot_network_mpl(G: nx.Graph, layout: str, node_color_property: Optional[st
         pos = nx.spring_layout(G)
     
     # Determine node colors
-    if node_color_property and node_color_property in list(G.nodes(data=True))[0][1]:
-        node_colors = [data.get(node_color_property, 0) for _, data in G.nodes(data=True)]
-        node_cmap = 'viridis'
+    if node_color_property and len(G.nodes) > 0:
+        node_data_list = list(G.nodes(data=True))
+        if node_data_list and node_color_property in node_data_list[0][1]:
+            node_colors = [data.get(node_color_property, 0) for _, data in G.nodes(data=True)]
+            node_cmap = 'viridis'
+        else:
+            # Color by element if available, otherwise use default
+            node_colors = []
+            for _, data in G.nodes(data=True):
+                element = data.get('element', data.get('atom_type', 'C'))
+                node_colors.append(visualizer.get_element_color(element))
+            node_cmap = None
     else:
-        # Color by element if available, otherwise use default
-        node_colors = []
-        for _, data in G.nodes(data=True):
-            element = data.get('element', data.get('atom_type', 'C'))
-            node_colors.append(visualizer.get_element_color(element))
+        # Default coloring
+        node_colors = 'skyblue'
         node_cmap = None
     
     # Determine edge colors
-    if edge_color_property and G.edges():
+    if edge_color_property and len(G.edges) > 0:
         edge_data = list(G.edges(data=True))
         if edge_data and edge_color_property in edge_data[0][2]:
             edge_colors = [data.get(edge_color_property, 0) for _, _, data in G.edges(data=True)]
@@ -366,17 +348,7 @@ def _plot_network_plotly(G: nx.Graph, layout: str, node_color_property: Optional
 def plot_adjacency_matrix(graph_data: Union[Data, nx.Graph, Dict],
                          figsize: Tuple[int, int] = (8, 6),
                          backend: str = 'matplotlib') -> Any:
-    """
-    Plot adjacency matrix of the crystal structure graph.
-    
-    Args:
-        graph_data: Graph data
-        figsize: Figure size for matplotlib
-        backend: Visualization backend
-        
-    Returns:
-        Figure object
-    """
+    """Plot adjacency matrix of the crystal structure graph."""
     visualizer = GraphVisualizer(backend)
     G = _convert_to_networkx(graph_data)
     
@@ -448,18 +420,7 @@ def plot_node_properties(graph_data: Union[Data, nx.Graph, Dict],
                         property_name: str,
                         figsize: Tuple[int, int] = (10, 6),
                         backend: str = 'matplotlib') -> Any:
-    """
-    Plot distribution of node properties.
-    
-    Args:
-        graph_data: Graph data
-        property_name: Name of node property to plot
-        figsize: Figure size for matplotlib
-        backend: Visualization backend
-        
-    Returns:
-        Figure object
-    """
+    """Plot distribution of node properties."""
     visualizer = GraphVisualizer(backend)
     G = _convert_to_networkx(graph_data)
     
@@ -530,17 +491,7 @@ def _plot_node_properties_plotly(property_values: List[float], property_name: st
 def plot_graph_metrics(graph_data: Union[Data, nx.Graph, Dict],
                       figsize: Tuple[int, int] = (12, 8),
                       backend: str = 'matplotlib') -> Any:
-    """
-    Plot various graph metrics and statistics.
-    
-    Args:
-        graph_data: Graph data
-        figsize: Figure size for matplotlib
-        backend: Visualization backend
-        
-    Returns:
-        Figure object
-    """
+    """Plot various graph metrics and statistics."""
     visualizer = GraphVisualizer(backend)
     G = _convert_to_networkx(graph_data)
     
@@ -665,15 +616,7 @@ def _plot_graph_metrics_plotly(G: nx.Graph):
 
 
 def analyze_graph_connectivity(graph_data: Union[Data, nx.Graph, Dict]) -> Dict[str, Any]:
-    """
-    Analyze connectivity properties of the crystal structure graph.
-    
-    Args:
-        graph_data: Graph data
-        
-    Returns:
-        Dictionary with connectivity analysis results
-    """
+    """Analyze connectivity properties of the crystal structure graph."""
     if not NETWORKX_AVAILABLE:
         raise DependencyError("NetworkX required for connectivity analysis. Install with: pip install networkx")
     

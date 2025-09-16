@@ -1,8 +1,9 @@
 """
-Analysis and Statistical Plotting Module
+Analysis and Statistical Plotting Module - FIXED VERSION
 
 Provides statistical visualization capabilities for crystal structure analysis,
 including property distributions, correlations, and comparative analysis.
+Compatible with actual Crysio Crystal class structure.
 """
 
 import numpy as np
@@ -32,41 +33,21 @@ try:
 except ImportError:
     PLOTLY_AVAILABLE = False
 
-# Import Crysio modules - use try/except for robust imports
+# FIXED: Use direct imports instead of relative
 try:
     from crysio.core.crystal import Crystal
-except ImportError:
-    try:
-        from ..core.crystal import Crystal
-    except ImportError:
-        # Define minimal Crystal class for testing
-        Crystal = None
-
-try:
     from crysio.utils.exceptions import DependencyError, VisualizationError
 except ImportError:
-    try:
-        from ..utils.exceptions import DependencyError, VisualizationError
-    except ImportError:
-        # Define minimal exception classes
-        class DependencyError(Exception):
-            pass
-        class VisualizationError(Exception):
-            pass
+    Crystal = None
+    class DependencyError(Exception): pass
+    class VisualizationError(Exception): pass
 
 
 class AnalysisVisualizer:
-    """
-    Statistical analysis and plotting for crystal structures.
-    """
+    """Statistical analysis and plotting for crystal structures."""
     
     def __init__(self, backend: str = 'matplotlib'):
-        """
-        Initialize the analysis visualizer.
-        
-        Args:
-            backend: Visualization backend ('matplotlib' or 'plotly')
-        """
+        """Initialize the analysis visualizer."""
         self.backend = backend
         self._validate_backend()
         
@@ -89,19 +70,7 @@ class AnalysisVisualizer:
 def plot_property_distribution(data: Dict[str, List[float]], property_name: str,
                              bins: int = 30, figsize: Tuple[int, int] = (10, 6),
                              backend: str = 'matplotlib') -> Any:
-    """
-    Plot distribution of crystal properties.
-    
-    Args:
-        data: Dictionary with property values
-        property_name: Name of the property to plot
-        bins: Number of histogram bins
-        figsize: Figure size for matplotlib
-        backend: Visualization backend
-        
-    Returns:
-        Figure object
-    """
+    """Plot distribution of crystal properties."""
     visualizer = AnalysisVisualizer(backend)
     
     if property_name not in data:
@@ -154,8 +123,6 @@ def _plot_distribution_mpl(values: np.ndarray, property_name: str,
 
 def _plot_distribution_plotly(values: np.ndarray, property_name: str, bins: int):
     """Plotly implementation of distribution plot."""
-    from plotly.subplots import make_subplots
-    
     fig = make_subplots(
         rows=1, cols=2,
         subplot_titles=[f'Distribution of {property_name}', f'Box Plot of {property_name}'],
@@ -191,18 +158,7 @@ def _plot_distribution_plotly(values: np.ndarray, property_name: str, bins: int)
 
 def plot_correlation_matrix(data: Dict[str, List[float]], properties: Optional[List[str]] = None,
                            figsize: Tuple[int, int] = (10, 8), backend: str = 'matplotlib') -> Any:
-    """
-    Plot correlation matrix of crystal properties.
-    
-    Args:
-        data: Dictionary with property values
-        properties: List of properties to include (None for all)
-        figsize: Figure size for matplotlib
-        backend: Visualization backend
-        
-    Returns:
-        Figure object
-    """
+    """Plot correlation matrix of crystal properties."""
     visualizer = AnalysisVisualizer(backend)
     
     # Select properties
@@ -284,19 +240,7 @@ def plot_structure_comparison(crystals: List[Crystal], property_name: str,
                             labels: Optional[List[str]] = None,
                             figsize: Tuple[int, int] = (10, 6),
                             backend: str = 'matplotlib') -> Any:
-    """
-    Compare a property across multiple crystal structures.
-    
-    Args:
-        crystals: List of crystal structures
-        property_name: Property to compare
-        labels: Labels for each structure
-        figsize: Figure size for matplotlib
-        backend: Visualization backend
-        
-    Returns:
-        Figure object
-    """
+    """Compare a property across multiple crystal structures."""
     visualizer = AnalysisVisualizer(backend)
     
     if labels is None:
@@ -309,14 +253,16 @@ def plot_structure_comparison(crystals: List[Crystal], property_name: str,
     values = []
     for crystal in crystals:
         if property_name == 'volume':
-            values.append(crystal.lattice_parameters.volume)
+            values.append(crystal.volume)
         elif property_name == 'density':
             values.append(crystal.density)
         elif property_name == 'num_atoms':
             values.append(len(crystal.atomic_sites))
         elif property_name in ['a', 'b', 'c']:
+            # FIXED: Use lattice_parameters instead of lattice
             values.append(getattr(crystal.lattice_parameters, property_name))
         elif property_name in ['alpha', 'beta', 'gamma']:
+            # FIXED: Use lattice_parameters instead of lattice
             values.append(getattr(crystal.lattice_parameters, property_name))
         else:
             raise ValueError(f"Unknown property: {property_name}")
@@ -377,19 +323,7 @@ def plot_formation_energy(data: Dict[str, List[float]], composition_col: str = '
                          energy_col: str = 'formation_energy_per_atom',
                          figsize: Tuple[int, int] = (10, 6),
                          backend: str = 'matplotlib') -> Any:
-    """
-    Plot formation energy vs composition.
-    
-    Args:
-        data: Dictionary with formation energy data
-        composition_col: Column name for composition
-        energy_col: Column name for formation energy
-        figsize: Figure size for matplotlib
-        backend: Visualization backend
-        
-    Returns:
-        Figure object
-    """
+    """Plot formation energy vs composition."""
     visualizer = AnalysisVisualizer(backend)
     
     if composition_col not in data or energy_col not in data:
@@ -464,20 +398,7 @@ def plot_property_scatter(data: Dict[str, List[float]], x_property: str, y_prope
                          color_property: Optional[str] = None,
                          figsize: Tuple[int, int] = (8, 6),
                          backend: str = 'matplotlib') -> Any:
-    """
-    Create scatter plot of two properties.
-    
-    Args:
-        data: Dictionary with property values
-        x_property: Property for x-axis
-        y_property: Property for y-axis
-        color_property: Property for color coding (optional)
-        figsize: Figure size for matplotlib
-        backend: Visualization backend
-        
-    Returns:
-        Figure object
-    """
+    """Create scatter plot of two properties."""
     visualizer = AnalysisVisualizer(backend)
     
     # Check required properties exist
@@ -569,3 +490,48 @@ def _plot_scatter_plotly(x_values: List[float], y_values: List[float],
     )
     
     return fig
+
+
+# ADDED: Function to extract properties from Crystal objects for analysis
+def extract_crystal_properties(crystals: List[Crystal], 
+                              property_names: Optional[List[str]] = None) -> Dict[str, List[float]]:
+    """
+    Extract properties from a list of Crystal objects for statistical analysis.
+    
+    Args:
+        crystals: List of Crystal objects
+        property_names: List of property names to extract (None for all available)
+        
+    Returns:
+        Dictionary with property names as keys and lists of values
+    """
+    if property_names is None:
+        property_names = ['volume', 'density', 'num_atoms', 'a', 'b', 'c', 'alpha', 'beta', 'gamma']
+    
+    data = {prop: [] for prop in property_names}
+    
+    for crystal in crystals:
+        for prop in property_names:
+            try:
+                if prop == 'volume':
+                    data[prop].append(crystal.volume)
+                elif prop == 'density':
+                    data[prop].append(crystal.density)
+                elif prop == 'num_atoms':
+                    data[prop].append(len(crystal.atomic_sites))
+                elif prop in ['a', 'b', 'c', 'alpha', 'beta', 'gamma']:
+                    # FIXED: Use lattice_parameters instead of lattice
+                    data[prop].append(getattr(crystal.lattice_parameters, prop))
+                else:
+                    # Try to get custom property
+                    if hasattr(crystal, prop):
+                        data[prop].append(getattr(crystal, prop))
+                    else:
+                        data[prop].append(np.nan)
+            except Exception:
+                data[prop].append(np.nan)
+    
+    # Remove properties with all NaN values
+    data = {k: v for k, v in data.items() if not all(np.isnan(val) for val in v if isinstance(val, (int, float)))}
+    
+    return data

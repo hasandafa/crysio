@@ -1,8 +1,9 @@
 """
-Crystal Structure Visualization Module
+Crystal Structure Visualization Module - FIXED VERSION
 
 Provides 2D and 3D visualization capabilities for crystal structures,
 including unit cells, atomic positions, and lattice parameters.
+Compatible with actual Crysio Crystal class structure.
 """
 
 import numpy as np
@@ -26,41 +27,45 @@ try:
 except ImportError:
     PLOTLY_AVAILABLE = False
 
-# Import Crysio modules - use try/except for robust imports
+# FIXED: Use direct imports instead of relative
 try:
     from crysio.core.crystal import Crystal
-except ImportError:
-    try:
-        from ..core.crystal import Crystal
-    except ImportError:
-        # Define minimal Crystal class for testing
-        Crystal = None
-
-try:
     from crysio.utils.exceptions import DependencyError, VisualizationError
 except ImportError:
-    try:
-        from ..utils.exceptions import DependencyError, VisualizationError
-    except ImportError:
-        # Define minimal exception classes
-        class DependencyError(Exception):
-            pass
-        class VisualizationError(Exception):
-            pass
+    Crystal = None
+    class DependencyError(Exception): pass
+    class VisualizationError(Exception): pass
+
+
+def create_lattice_matrix(lattice_params):
+    """Create lattice matrix from lattice parameters."""
+    a, b, c = lattice_params.a, lattice_params.b, lattice_params.c
+    alpha, beta, gamma = np.radians([lattice_params.alpha, lattice_params.beta, lattice_params.gamma])
+    
+    cos_alpha = np.cos(alpha)
+    cos_beta = np.cos(beta)
+    cos_gamma = np.cos(gamma)
+    sin_gamma = np.sin(gamma)
+    
+    # Volume calculation
+    volume = a * b * c * np.sqrt(1 + 2*cos_alpha*cos_beta*cos_gamma - 
+                                 cos_alpha**2 - cos_beta**2 - cos_gamma**2)
+    
+    # Lattice vectors as columns
+    lattice_matrix = np.array([
+        [a, b * cos_gamma, c * cos_beta],
+        [0, b * sin_gamma, c * (cos_alpha - cos_beta * cos_gamma) / sin_gamma],
+        [0, 0, volume / (a * b * sin_gamma)]
+    ])
+    
+    return lattice_matrix
 
 
 class CrystalVisualizer:
-    """
-    Comprehensive crystal structure visualizer with 2D and 3D capabilities.
-    """
+    """Comprehensive crystal structure visualizer with 2D and 3D capabilities."""
     
     def __init__(self, backend: str = 'matplotlib'):
-        """
-        Initialize the crystal visualizer.
-        
-        Args:
-            backend: Visualization backend ('matplotlib' or 'plotly')
-        """
+        """Initialize the crystal visualizer."""
         self.backend = backend
         self._validate_backend()
         
@@ -73,7 +78,8 @@ class CrystalVisualizer:
             'Cl': '#1FF01F', 'Ar': '#80D1E3', 'K': '#8F40D4', 'Ca': '#3DFF00',
             'Sc': '#E6E6E6', 'Ti': '#BFC2C7', 'V': '#A6A6AB', 'Cr': '#8A99C7',
             'Mn': '#9C7AC7', 'Fe': '#E06633', 'Co': '#F090A0', 'Ni': '#50D050',
-            'Cu': '#C88033', 'Zn': '#7D80B0'
+            'Cu': '#C88033', 'Zn': '#7D80B0', 'Ga': '#C28F8F', 'Ge': '#668F8F',
+            'Ce': '#FFFFC7', 'Pr': '#D9FFC7', 'Nd': '#C7FFC7'
         }
         
         # Default atomic radii (in Angstroms)
@@ -81,7 +87,9 @@ class CrystalVisualizer:
             'H': 0.31, 'He': 0.28, 'Li': 1.28, 'Be': 0.96, 'B': 0.84,
             'C': 0.76, 'N': 0.71, 'O': 0.66, 'F': 0.57, 'Ne': 0.58,
             'Na': 1.66, 'Mg': 1.41, 'Al': 1.21, 'Si': 1.11, 'P': 1.07,
-            'S': 1.05, 'Cl': 1.02, 'Ar': 1.06, 'K': 2.03, 'Ca': 1.76
+            'S': 1.05, 'Cl': 1.02, 'Ar': 1.06, 'K': 2.03, 'Ca': 1.76,
+            'Fe': 1.26, 'Co': 1.25, 'Ni': 1.24, 'Cu': 1.28, 'Zn': 1.33,
+            'Ga': 1.22, 'Ge': 1.22, 'Ce': 1.81, 'Pr': 1.82, 'Nd': 1.81
         }
     
     def _validate_backend(self):
@@ -104,18 +112,7 @@ class CrystalVisualizer:
 
 def plot_unit_cell_2d(crystal: Crystal, plane: str = 'xy', figsize: Tuple[int, int] = (8, 6), 
                      backend: str = 'matplotlib') -> Any:
-    """
-    Plot 2D projection of unit cell.
-    
-    Args:
-        crystal: Crystal structure to visualize
-        plane: Projection plane ('xy', 'xz', 'yz')
-        figsize: Figure size for matplotlib
-        backend: Visualization backend
-        
-    Returns:
-        Figure object (matplotlib or plotly)
-    """
+    """Plot 2D projection of unit cell."""
     visualizer = CrystalVisualizer(backend)
     
     if backend == 'matplotlib':
@@ -136,8 +133,8 @@ def _plot_unit_cell_2d_mpl(crystal: Crystal, plane: str, figsize: Tuple[int, int
     
     x_idx, y_idx = plane_map[plane]
     
-    # Plot lattice vectors
-    lattice_matrix = crystal.lattice_parameters.get_lattice_matrix()
+    # FIXED: Use lattice_parameters instead of lattice
+    lattice_matrix = create_lattice_matrix(crystal.lattice_parameters)
     
     # Unit cell corners
     corners = np.array([
@@ -158,20 +155,25 @@ def _plot_unit_cell_2d_mpl(crystal: Crystal, plane: str, figsize: Tuple[int, int
                 [cart_corners[i, y_idx], cart_corners[i+5, y_idx]], 'k-', linewidth=2, alpha=0.7)
     
     # Plot atoms
+    plotted_elements = set()
     for site in crystal.atomic_sites:
-        # Convert fractional to Cartesian coordinates
-        cart_pos = site.fractional_coords @ lattice_matrix
+        # FIXED: Use site.position instead of site.fractional_coords
+        cart_pos = np.array(site.position) @ lattice_matrix
         
         color = visualizer.get_element_color(site.element)
         radius = visualizer.get_atomic_radius(site.element) * 200  # Scale for visualization
         
+        # Add to legend only once per element
+        label = site.element if site.element not in plotted_elements else ""
+        if label:
+            plotted_elements.add(site.element)
+        
         ax.scatter(cart_pos[x_idx], cart_pos[y_idx], c=color, s=radius, 
-                  alpha=0.8, edgecolors='black', linewidth=0.5, label=site.element)
+                  alpha=0.8, edgecolors='black', linewidth=0.5, label=label)
     
-    # Remove duplicate labels
-    handles, labels = ax.get_legend_handles_labels()
-    by_label = dict(zip(labels, handles))
-    ax.legend(by_label.values(), by_label.keys())
+    # Legend
+    if plotted_elements:
+        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     
     ax.set_xlabel(f'{["x", "y", "z"][x_idx]} (Å)')
     ax.set_ylabel(f'{["x", "y", "z"][y_idx]} (Å)')
@@ -195,8 +197,8 @@ def _plot_unit_cell_2d_plotly(crystal: Crystal, plane: str, visualizer: CrystalV
     
     fig = go.Figure()
     
-    # Plot lattice vectors and unit cell
-    lattice_matrix = crystal.lattice_parameters.get_lattice_matrix()
+    # FIXED: Use lattice_parameters instead of lattice
+    lattice_matrix = create_lattice_matrix(crystal.lattice_parameters)
     
     # Unit cell corners
     corners = np.array([
@@ -216,7 +218,8 @@ def _plot_unit_cell_2d_plotly(crystal: Crystal, plane: str, visualizer: CrystalV
     # Plot atoms
     elements_plotted = set()
     for site in crystal.atomic_sites:
-        cart_pos = site.fractional_coords @ lattice_matrix
+        # FIXED: Use site.position instead of site.fractional_coords
+        cart_pos = np.array(site.position) @ lattice_matrix
         color = visualizer.get_element_color(site.element)
         radius = visualizer.get_atomic_radius(site.element) * 20
         
@@ -244,18 +247,7 @@ def _plot_unit_cell_2d_plotly(crystal: Crystal, plane: str, visualizer: CrystalV
 
 def plot_crystal_3d(crystal: Crystal, supercell: Tuple[int, int, int] = (1, 1, 1),
                    figsize: Tuple[int, int] = (10, 8), backend: str = 'matplotlib') -> Any:
-    """
-    Plot 3D crystal structure.
-    
-    Args:
-        crystal: Crystal structure to visualize
-        supercell: Supercell dimensions (nx, ny, nz)
-        figsize: Figure size for matplotlib
-        backend: Visualization backend
-        
-    Returns:
-        Figure object (matplotlib or plotly)
-    """
+    """Plot 3D crystal structure."""
     visualizer = CrystalVisualizer(backend)
     
     if backend == 'matplotlib':
@@ -270,7 +262,8 @@ def _plot_crystal_3d_mpl(crystal: Crystal, supercell: Tuple[int, int, int],
     fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(111, projection='3d')
     
-    lattice_matrix = crystal.lattice_parameters.get_lattice_matrix()
+    # FIXED: Use lattice_parameters instead of lattice
+    lattice_matrix = create_lattice_matrix(crystal.lattice_parameters)
     
     # Generate supercell atoms
     nx, ny, nz = supercell
@@ -280,8 +273,8 @@ def _plot_crystal_3d_mpl(crystal: Crystal, supercell: Tuple[int, int, int],
         for j in range(ny):
             for k in range(nz):
                 for site in crystal.atomic_sites:
-                    # Supercell position
-                    frac_coords = site.fractional_coords + np.array([i, j, k])
+                    # FIXED: Use site.position instead of site.fractional_coords
+                    frac_coords = np.array(site.position) + np.array([i, j, k])
                     cart_pos = frac_coords @ lattice_matrix
                     
                     color = visualizer.get_element_color(site.element)
@@ -319,7 +312,8 @@ def _plot_crystal_3d_plotly(crystal: Crystal, supercell: Tuple[int, int, int],
     """Plotly implementation of 3D crystal plot."""
     fig = go.Figure()
     
-    lattice_matrix = crystal.lattice_parameters.get_lattice_matrix()
+    # FIXED: Use lattice_parameters instead of lattice
+    lattice_matrix = create_lattice_matrix(crystal.lattice_parameters)
     nx, ny, nz = supercell
     
     # Generate supercell atoms
@@ -328,7 +322,8 @@ def _plot_crystal_3d_plotly(crystal: Crystal, supercell: Tuple[int, int, int],
         for j in range(ny):
             for k in range(nz):
                 for site in crystal.atomic_sites:
-                    frac_coords = site.fractional_coords + np.array([i, j, k])
+                    # FIXED: Use site.position instead of site.fractional_coords
+                    frac_coords = np.array(site.position) + np.array([i, j, k])
                     cart_pos = frac_coords @ lattice_matrix
                     
                     color = visualizer.get_element_color(site.element)
@@ -427,19 +422,11 @@ def _add_unit_cell_edges_3d_plotly(fig, lattice_matrix: np.ndarray, supercell: T
 
 
 def plot_lattice_parameters(crystal: Crystal, figsize: Tuple[int, int] = (10, 6)) -> Any:
-    """
-    Plot lattice parameters as bar chart.
-    
-    Args:
-        crystal: Crystal structure
-        figsize: Figure size
-        
-    Returns:
-        Matplotlib figure
-    """
+    """Plot lattice parameters as bar chart."""
     if not MATPLOTLIB_AVAILABLE:
         raise DependencyError("Matplotlib required for lattice parameter plots")
     
+    # FIXED: Use lattice_parameters instead of lattice
     lattice = crystal.lattice_parameters
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
@@ -481,17 +468,7 @@ def plot_lattice_parameters(crystal: Crystal, figsize: Tuple[int, int] = (10, 6)
 
 def plot_atomic_positions(crystal: Crystal, projection: str = '3d', 
                          figsize: Tuple[int, int] = (8, 6)) -> Any:
-    """
-    Plot atomic positions in crystal structure.
-    
-    Args:
-        crystal: Crystal structure
-        projection: '3d' or '2d'
-        figsize: Figure size
-        
-    Returns:
-        Matplotlib figure
-    """
+    """Plot atomic positions in crystal structure."""
     if not MATPLOTLIB_AVAILABLE:
         raise DependencyError("Matplotlib required for atomic position plots")
     
@@ -509,8 +486,9 @@ def plot_atomic_positions(crystal: Crystal, projection: str = '3d',
             show_label = site.element not in elements_plotted
             elements_plotted.add(site.element)
             
-            ax.scatter(site.fractional_coords[0], site.fractional_coords[1], 
-                      site.fractional_coords[2], c=color, s=radius, alpha=0.8,
+            # FIXED: Use site.position instead of site.fractional_coords
+            ax.scatter(site.position[0], site.position[1], 
+                      site.position[2], c=color, s=radius, alpha=0.8,
                       edgecolors='black', label=site.element if show_label else "")
         
         ax.set_xlabel('Fractional x')
@@ -534,7 +512,8 @@ def plot_atomic_positions(crystal: Crystal, projection: str = '3d',
             show_label = site.element not in elements_plotted
             elements_plotted.add(site.element)
             
-            ax.scatter(site.fractional_coords[0], site.fractional_coords[1], 
+            # FIXED: Use site.position instead of site.fractional_coords
+            ax.scatter(site.position[0], site.position[1], 
                       c=color, s=radius, alpha=0.8, edgecolors='black',
                       label=site.element if show_label else "")
         
